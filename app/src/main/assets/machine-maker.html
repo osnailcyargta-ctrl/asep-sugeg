@@ -1,0 +1,2596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Machine Maker</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --panel: #111318;
+    --border: #1e2530;
+    --accent: #00e5ff;
+    --accent2: #ff6b35;
+    --green: #39ff14;
+    --yellow: #ffd600;
+    --red: #ff1744;
+    --text: #c8d6e5;
+    --text-dim: #4a5568;
+    --grid-color: #131820;
+    --cell: 32;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── TOP BAR ── */
+  #topbar {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    height: 48px;
+    gap: 20px;
+    flex-shrink: 0;
+    z-index: 100;
+  }
+  #topbar .logo {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: 16px;
+    color: var(--accent);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+  #topbar .logo span { color: var(--accent2); }
+  .topbar-sep { flex: 1; }
+  .money-display {
+    background: #0d1a0d;
+    border: 1px solid var(--green);
+    color: var(--green);
+    padding: 4px 14px;
+    font-size: 14px;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+  .mode-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 4px 12px;
+    cursor: pointer;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    transition: all 0.15s;
+  }
+  .mode-btn.active, .mode-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .topbar-time {
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  /* ── MAIN LAYOUT ── */
+  #main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── LEFT PANEL: SHOP ── */
+  #shop-panel {
+    width: 200px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  #shop-panel .panel-title {
+    padding: 10px 12px;
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    border-bottom: 1px solid var(--border);
+    text-transform: uppercase;
+  }
+  #shop-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 6px;
+  }
+  #shop-list::-webkit-scrollbar { width: 4px; }
+  #shop-list::-webkit-scrollbar-track { background: transparent; }
+  #shop-list::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .shop-item {
+    border: 1px solid var(--border);
+    padding: 9px 8px;
+    margin-bottom: 6px;
+    cursor: grab;
+    transition: all 0.1s;
+    position: relative;
+    user-select: none;
+    touch-action: none;
+  }
+  .shop-item:hover { border-color: var(--accent); background: #141a24; }
+  .shop-item:active { cursor: grabbing; }
+  .shop-item .item-name { font-size: 11px; color: var(--text); }
+  .shop-item .item-price { font-size: 10px; color: var(--yellow); margin-top: 2px; }
+  .shop-item .item-size { font-size: 9px; color: var(--text-dim); }
+  .shop-item.free .item-price { color: var(--green); }
+  .shop-item.disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
+
+  .shop-cat {
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 8px 4px 3px;
+    border-top: 1px solid var(--border);
+    margin-top: 4px;
+  }
+  .shop-cat:first-child { border-top: none; margin-top: 0; }
+
+  /* ── WORKSPACE ── */
+  #workspace-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+  #workspace-toolbar {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    height: 36px;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .tb-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 3px 10px;
+    cursor: pointer;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    transition: all 0.12s;
+  }
+  .tb-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+  .tb-btn.danger:hover { border-color: var(--red); color: var(--red); }
+  .tb-btn.submit-btn { border-color: var(--green); color: var(--green); }
+  .tb-btn.submit-btn:hover { background: #0d1a0d; }
+  #canvas-scroll {
+    flex: 1;
+    overflow: auto;
+    position: relative;
+  }
+  #canvas-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+  #canvas-scroll::-webkit-scrollbar-track { background: var(--bg); }
+  #canvas-scroll::-webkit-scrollbar-thumb { background: var(--border); }
+
+  #game-canvas {
+    position: relative;
+    background-color: var(--bg);
+    background-image:
+      linear-gradient(var(--grid-color) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+    background-size: 32px 32px;
+    cursor: crosshair;
+  }
+
+  /* ── COMPONENTS ON CANVAS ── */
+  .comp {
+    position: absolute;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    cursor: move;
+    user-select: none;
+    transition: border-color 0.1s;
+    z-index: 10;
+    touch-action: none;
+  }
+  .comp:hover { border-color: var(--accent); z-index: 20; }
+  .comp.selected { border-color: var(--accent); box-shadow: 0 0 8px rgba(0,229,255,0.3); z-index: 30; }
+  .comp-inner {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3px;
+    pointer-events: none;
+  }
+  .comp-icon { font-size: 18px; line-height: 1; }
+  .comp-label {
+    font-size: 8px;
+    color: var(--text-dim);
+    text-align: center;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 90%;
+  }
+  .comp-subtype {
+    font-size: 7px;
+    color: var(--accent2);
+    text-align: center;
+  }
+
+  /* ports */
+  .port {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid;
+    background: var(--bg);
+    cursor: crosshair;
+    z-index: 40;
+    transition: transform 0.1s;
+    pointer-events: all;
+    touch-action: none;
+  }
+  .port:hover { transform: scale(1.3); }
+  .port.output { border-color: var(--accent2); right: -9px; top: 50%; transform: translateY(-50%); }
+  .port.output:hover { transform: translateY(-50%) scale(1.3); }
+  .port.input { border-color: var(--accent); left: -9px; top: 50%; transform: translateY(-50%); }
+  .port.input:hover { transform: translateY(-50%) scale(1.3); }
+  .port.connected { background: currentColor; }
+  .port.output.connected { background: var(--accent2); }
+  .port.input.connected { background: var(--accent); }
+  .port.universal { border-color: #d400ff; right: -9px; top: 50%; transform: translateY(-50%); }
+  .port.universal:hover { transform: translateY(-50%) scale(1.3); }
+  .port.universal.connected { background: #d400ff; }
+
+  /* portal */
+  .comp.portal-comp { border-color: #d400ff; }
+  .comp.portal-comp .comp-icon { animation: portalSpin 2.5s linear infinite; }
+  @keyframes portalSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  .comp.portal-paired { box-shadow: 0 0 10px rgba(212,0,255,0.5); }
+  .comp.portal-teleport { animation: portalFlash 0.35s ease-out; }
+  @keyframes portalFlash {
+    0% { box-shadow: 0 0 0 rgba(212,0,255,0); transform: scale(1); }
+    50% { box-shadow: 0 0 20px rgba(212,0,255,0.9); transform: scale(0.85); }
+    100% { box-shadow: 0 0 0 rgba(212,0,255,0); transform: scale(1); }
+  }
+
+  /* timer */
+  .comp.timer-comp.timer-active { border-color: var(--yellow); box-shadow: 0 0 12px rgba(255,214,0,0.5); }
+  .timer-badge {
+    position: absolute;
+    bottom: -2px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 7px;
+    color: var(--yellow);
+    background: var(--bg);
+    padding: 0 3px;
+    white-space: nowrap;
+  }
+
+  /* wire svg */
+  #wire-layer {
+    position: absolute;
+    top: 0; left: 0;
+    pointer-events: none;
+    z-index: 5;
+  }
+  .wire {
+    stroke: var(--accent2);
+    stroke-width: 2;
+    fill: none;
+    opacity: 0.8;
+    cursor: pointer;
+    pointer-events: stroke;
+  }
+  .wire:hover { stroke: var(--red); stroke-width: 3; opacity: 1; }
+  .wire-preview {
+    stroke: var(--yellow);
+    stroke-width: 1.5;
+    stroke-dasharray: 5 3;
+    fill: none;
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  /* comp states */
+  .comp.active-comp { border-color: var(--green); box-shadow: 0 0 12px rgba(57,255,20,0.4); }
+  .comp.button-comp { cursor: pointer; }
+  .comp.button-comp .comp-inner { pointer-events: none; }
+
+  /* printer output paper */
+  .print-output {
+    position: absolute;
+    top: -70px;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 2px solid #fff;
+    background: #fff;
+    box-shadow: 0 0 12px rgba(255,255,255,0.5);
+    z-index: 50;
+    max-width: 80px;
+    max-height: 80px;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .print-output img { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+  /* mover item */
+  .comp.mover-active { animation: moverPulse 0.3s ease-out; }
+  @keyframes moverPulse {
+    0% { box-shadow: 0 0 0 rgba(255,107,53,0); }
+    50% { box-shadow: 0 0 16px rgba(255,107,53,0.8); }
+    100% { box-shadow: 0 0 0 rgba(255,107,53,0); }
+  }
+
+  /* ── RIGHT PANEL: INFO ── */
+  #info-panel {
+    width: 200px;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  #info-panel .panel-title {
+    padding: 10px 12px;
+    font-size: 10px;
+    color: var(--accent2);
+    letter-spacing: 2px;
+    border-bottom: 1px solid var(--border);
+    text-transform: uppercase;
+  }
+  #customer-box {
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .customer-name {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 13px;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .customer-order {
+    font-size: 10px;
+    color: var(--text);
+    line-height: 1.6;
+  }
+  .order-label { color: var(--text-dim); font-size: 9px; }
+  .order-value { color: var(--yellow); }
+  .order-budget { color: var(--green); font-size: 11px; margin-top: 6px; }
+  .order-desc {
+    font-size: 9px;
+    color: var(--text-dim);
+    margin-top: 6px;
+    line-height: 1.5;
+    font-style: italic;
+  }
+
+  #prop-box {
+    padding: 10px 12px;
+    flex: 1;
+    overflow-y: auto;
+  }
+  #prop-box::-webkit-scrollbar { width: 4px; }
+  #prop-box::-webkit-scrollbar-thumb { background: var(--border); }
+  .prop-title { font-size: 9px; color: var(--text-dim); letter-spacing: 2px; margin-bottom: 8px; text-transform: uppercase; }
+  .prop-row { font-size: 10px; margin-bottom: 5px; }
+  .prop-key { color: var(--text-dim); }
+  .prop-val { color: var(--text); }
+
+  .usb-upload-btn {
+    display: block;
+    width: 100%;
+    margin-top: 8px;
+    background: transparent;
+    border: 1px solid var(--accent2);
+    color: var(--accent2);
+    padding: 5px;
+    cursor: pointer;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    text-align: center;
+  }
+  .usb-upload-btn:hover { background: #1a1208; }
+  .file-loaded { font-size: 9px; color: var(--green); margin-top: 5px; word-break: break-all; }
+
+  /* ── MODALS ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  .modal {
+    background: var(--panel);
+    border: 1px solid var(--accent);
+    padding: 24px;
+    min-width: 320px;
+    max-width: 480px;
+    font-family: 'Share Tech Mono', monospace;
+  }
+  .modal h2 {
+    font-family: 'Orbitron', sans-serif;
+    color: var(--accent);
+    font-size: 16px;
+    margin-bottom: 14px;
+  }
+  .modal p { font-size: 12px; color: var(--text); line-height: 1.7; margin-bottom: 10px; }
+  .modal .highlight { color: var(--yellow); }
+  .modal-btns { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+  .modal-btn {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 8px 18px;
+    cursor: pointer;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    transition: all 0.12s;
+  }
+  .modal-btn:hover { background: var(--accent); color: var(--bg); }
+  .modal-btn.secondary { border-color: var(--border); color: var(--text-dim); }
+  .modal-btn.secondary:hover { border-color: var(--text); color: var(--text); background: transparent; }
+  .modal-btn.success { border-color: var(--green); color: var(--green); }
+  .modal-btn.success:hover { background: var(--green); color: var(--bg); }
+
+  /* toast */
+  #toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--panel);
+    border: 1px solid var(--accent);
+    color: var(--text);
+    padding: 8px 20px;
+    font-size: 12px;
+    z-index: 2000;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+  }
+  #toast.show { opacity: 1; }
+  #toast.error { border-color: var(--red); color: var(--red); }
+  #toast.success { border-color: var(--green); color: var(--green); }
+
+  /* sandbox badge */
+  .sandbox-badge {
+    background: #1a0a1a;
+    border: 1px solid #9c27b0;
+    color: #ce93d8;
+    padding: 2px 8px;
+    font-size: 10px;
+    letter-spacing: 1px;
+  }
+
+  /* detector highlight */
+  .comp.detector-hover { border-color: var(--yellow); box-shadow: 0 0 10px rgba(255,214,0,0.5); }
+
+  /* size indicator */
+  .size-tag {
+    position: absolute;
+    bottom: -14px;
+    left: 0;
+    font-size: 8px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  /* connected glow on wire */
+  @keyframes wireFlow {
+    0% { stroke-dashoffset: 20; }
+    100% { stroke-dashoffset: 0; }
+  }
+  .wire.active-wire {
+    stroke: var(--green);
+    stroke-dasharray: 5 3;
+    animation: wireFlow 0.4s linear infinite;
+  }
+
+  /* usb hidden input */
+  #usb-file-input, #sound-file-input { display: none; }
+
+  /* touch drag ghost */
+  #drag-ghost {
+    position: fixed;
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.75;
+    border: 2px dashed var(--accent);
+    background: var(--panel);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    font-size: 20px;
+    color: var(--accent);
+    padding: 4px;
+  }
+  #drag-ghost.visible { display: flex; }
+
+  .timer-bar {
+    height: 3px;
+    background: var(--border);
+    margin-top: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+  .timer-fill {
+    height: 100%;
+    background: var(--green);
+    transition: width 1s linear, background 1s;
+  }
+  .order-timer { font-size: 9px; color: var(--text-dim); margin-top: 3px; }
+
+  /* ── USB ITEM (floating stick on canvas) ── */
+  .usb-item {
+    position: absolute;
+    width: 48px;
+    height: 28px;
+    background: #1a1208;
+    border: 1px solid var(--accent2);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    cursor: grab;
+    z-index: 50;
+    user-select: none;
+    touch-action: none;
+    box-shadow: 0 0 6px rgba(255,107,53,0.4);
+  }
+  .usb-item:active { cursor: grabbing; }
+  .usb-item .usb-label {
+    position: absolute;
+    bottom: -14px;
+    left: 0;
+    font-size: 7px;
+    color: var(--accent2);
+    white-space: nowrap;
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+  }
+  .usb-item.inserted {
+    opacity: 0.3;
+    pointer-events: none;
+  }
+
+  /* ── CANVAS SIZE PICKER ── */
+  .canvas-picker-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+  }
+  .canvas-picker {
+    background: var(--panel);
+    border: 1px solid var(--accent);
+    padding: 28px 32px;
+    min-width: 340px;
+    font-family: 'Share Tech Mono', monospace;
+  }
+  .canvas-picker h2 {
+    font-family: 'Orbitron', sans-serif;
+    color: var(--accent);
+    font-size: 15px;
+    margin-bottom: 6px;
+  }
+  .canvas-picker p { font-size: 11px; color: var(--text-dim); margin-bottom: 18px; }
+  .picker-sizes {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+  .picker-size-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 6px;
+    cursor: pointer;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    text-align: center;
+    transition: all 0.12s;
+    line-height: 1.5;
+  }
+  .picker-size-btn:hover, .picker-size-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: #0d1824;
+  }
+  .picker-size-btn .ps-dim { font-size: 9px; color: var(--text-dim); display: block; margin-top: 2px; }
+  .picker-start-btn {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--green);
+    color: var(--green);
+    padding: 10px;
+    cursor: pointer;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    transition: all 0.12s;
+  }
+  .picker-start-btn:hover { background: #0d1a0d; }
+
+  /* canvas boundary */
+  #canvas-boundary {
+    position: absolute;
+    border: 1px dashed rgba(0,229,255,0.25);
+    pointer-events: none;
+    z-index: 4;
+    top: 0; left: 0;
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div class="logo">MACHINE<span>-</span>MAKER</div>
+  <button class="mode-btn active" id="btn-career" onclick="setMode('career')">CAREER</button>
+  <button class="mode-btn" id="btn-sandbox" onclick="setMode('sandbox')">SANDBOX</button>
+  <div class="topbar-sep"></div>
+  <button class="mode-btn" onclick="saveGame()">💾 SAVE</button>
+  <button class="mode-btn" onclick="loadGame()">📂 LOAD</button>
+  <div id="sandbox-badge" class="sandbox-badge" style="display:none">∞ SANDBOX MODE</div>
+  <div class="money-display">$<span id="money-display">500</span></div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- SHOP -->
+  <div id="shop-panel">
+    <div class="panel-title">▸ SHOP</div>
+    <div id="shop-list"></div>
+  </div>
+
+  <!-- WORKSPACE -->
+  <div id="workspace-wrap">
+    <div id="workspace-toolbar">
+      <button class="tb-btn danger" onclick="clearAll()">✕ CLEAR</button>
+      <button class="tb-btn" onclick="deleteSelected()">⌦ DEL</button>
+      <button class="tb-btn" onclick="undoLast()">↩ UNDO</button>
+      <div style="flex:1"></div>
+      <span style="font-size:10px;color:var(--text-dim)" id="canvas-info">32×32 grid</span>
+      <div style="flex:1"></div>
+      <button class="tb-btn submit-btn" id="submit-btn" onclick="submitMachine()">▶ SUBMIT ORDER</button>
+    </div>
+    <div id="canvas-scroll">
+      <div id="game-canvas">
+        <svg id="wire-layer"></svg>
+        <div id="canvas-boundary"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INFO PANEL -->
+  <div id="info-panel">
+    <div class="panel-title">▸ ORDER</div>
+    <div id="customer-box"></div>
+    <div id="prop-box">
+      <div class="prop-title">SELECTED</div>
+      <div id="prop-content" style="color:var(--text-dim);font-size:10px">nothing selected</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODALS -->
+<div id="modal-container"></div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- Hidden file inputs -->
+<input type="file" id="usb-file-input" accept="image/*,audio/*">
+<input type="file" id="sound-file-input" accept="audio/*">
+
+<!-- Touch drag ghost -->
+<div id="drag-ghost"></div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════
+const S = {
+  mode: 'career',
+  money: 500,
+  components: [],
+  wires: [],
+  selected: null,
+  nextId: 1,
+  dragging: null,
+  wiringFrom: null,
+  mouseX: 0, mouseY: 0,
+  undoStack: [],
+  orderStartTime: null,
+  orderTimer: null,
+  currentOrder: null,
+  orderElapsed: 0,
+  sandboxMode: false,
+  usbItems: [],       // { id, fileName, fileData, fileType, el } — floating USB sticks on canvas
+  canvasW_m: 2,       // canvas width in meters
+  canvasH_m: 2,       // canvas height in meters
+  portalPair: null,   // [compIdA, compIdB] — the only active portal pairing (max 2 portals allowed)
+  timerIntervals: {}, // compId -> intervalId for active Timer components
+};
+
+// ══════════════════════════════════════════════════════
+//  COMPONENT DEFINITIONS
+// ══════════════════════════════════════════════════════
+const COMP_DEFS = {
+  button:         { label:'Button',            icon:'🔘', w:2,  h:2,  price:25,  ports:{output:['signal']},                  cat:'input',    desc:'Click to send signal' },
+  detector:       { label:'Detector',          icon:'👁',  w:2,  h:2,  price:40,  ports:{output:['signal']},                  cat:'input',    desc:'Activates on hover' },
+  usb_porter:     { label:'USB Porter',        icon:'🔌', w:2,  h:2,  price:30,  ports:{output:['data'],input:['usb']},       cat:'input',    desc:'Drag a USB stick onto it to load data' },
+  sound_player:   { label:'Sound Player',      icon:'🔊', w:2,  h:2,  price:35,  ports:{input:['signal']},                   cat:'output',   desc:'Plays sound on activation' },
+  file_connector: { label:'File Input Conn.',  icon:'📎', w:2,  h:2,  price:70,  ports:{input:['data'],output:['filedata']},  cat:'processor',desc:'Converts USB data to chipset input' },
+  printer_alpha_100:  { label:'Printer Chipset',icon:'🖨', w:3,  h:3,  price:80,  ports:{input:['filedata']},                 cat:'output',   desc:'Alpha 1.0 — slow, small (3×3 tiles)', subtype:'α1.0' },
+  printer_alpha_112:  { label:'Printer Chipset',icon:'🖨', w:3,  h:3,  price:100, ports:{input:['filedata']},                 cat:'output',   desc:'Alpha 1.12 — faster, small (3×3 tiles)', subtype:'α1.12' },
+  printer_omega_10:   { label:'Printer Chipset',icon:'🖨', w:5,  h:5,  price:180, ports:{input:['filedata']},                 cat:'output',   desc:'Omega 1.0 — fast, medium (5×5 tiles)', subtype:'Ω1.0' },
+  printer_omega_11:   { label:'Printer Chipset',icon:'🖨', w:5,  h:5,  price:250, ports:{input:['filedata']},                 cat:'output',   desc:'Omega 1.1 — very fast (5×5 tiles)', subtype:'Ω1.1' },
+  printer_omega_ultra:{ label:'Printer Chipset',icon:'🖨', w:8,  h:8,  price:400, ports:{input:['filedata']},                 cat:'output',   desc:'Omega Ultra — max speed, large (8×8 tiles)', subtype:'Ω∞' },
+  mover_forward:       { label:'Mover → Fwd',  icon:'⬆', w:2,  h:2,  price:50,  ports:{input:['signal'],output:['moved']},   cat:'motion',   desc:'Moves connected item forward', subtype:'forward' },
+  mover_backward:      { label:'Mover → Bwd',  icon:'⬇', w:2,  h:2,  price:50,  ports:{input:['signal'],output:['moved']},   cat:'motion',   desc:'Moves connected item backward', subtype:'backward' },
+  mover_left:          { label:'Mover → Left', icon:'⬅', w:2,  h:2,  price:50,  ports:{input:['signal'],output:['moved']},   cat:'motion',   desc:'Moves connected item left', subtype:'left' },
+  mover_right:         { label:'Mover → Right',icon:'➡', w:2,  h:2,  price:50,  ports:{input:['signal'],output:['moved']},   cat:'motion',   desc:'Moves connected item right', subtype:'right' },
+  sticky_mover_forward: { label:'Sticky Mover ↑',icon:'🔼',w:2, h:2,  price:75,  ports:{input:['signal'],output:['moved']},   cat:'motion',   desc:'Sticky: item snaps back', subtype:'fwd-sticky' },
+  sticky_mover_backward:{ label:'Sticky Mover ↓',icon:'🔽',w:2, h:2,  price:75,  ports:{input:['signal'],output:['moved']},   cat:'motion',   desc:'Sticky: item snaps back', subtype:'bwd-sticky' },
+  rod_long:       { label:'Long Rod',          icon:'▬', w:4,  h:1,  price:30,  ports:{input:['moved']},                    cat:'structure',desc:'Solid long rod. Input only.' },
+  cube:           { label:'Cube',              icon:'🟥', w:2,  h:2,  price:20,  ports:{input:['moved']},                    cat:'structure',desc:'Solid cube' },
+  portal:         { label:'Portal',            icon:'🌀', w:2,  h:2,  price:90,  ports:{universal:['portal']},               cat:'special',  desc:'Max 2 portal di kanvas. Benda yang nyentuh Portal A langsung muncul di Portal B (dan sebaliknya). Klik 2 portal buat pasangin.' },
+  timer_gate:     { label:'Timer',             icon:'⏱', w:2,  h:2,  price:60,  ports:{output:['signal']},                  cat:'special',  desc:'Aktif sendiri tiap N detik (atur di panel properti). Berfungsi seperti Button otomatis.' },
+};
+
+const SHOP_ORDER = [
+  {cat:'── INPUT ──',     items:['button','detector','usb_porter','sound_player']},
+  {cat:'── PROCESSOR ──', items:['file_connector']},
+  {cat:'── PRINTER α ──', items:['printer_alpha_100','printer_alpha_112']},
+  {cat:'── PRINTER Ω ──', items:['printer_omega_10','printer_omega_11','printer_omega_ultra']},
+  {cat:'── MOTION ──',    items:['mover_forward','mover_backward','mover_left','mover_right','sticky_mover_forward','sticky_mover_backward']},
+  {cat:'── STRUCTURE ──', items:['rod_long','cube']},
+  {cat:'── SPECIAL ──',   items:['portal','timer_gate']},
+];
+
+// ══════════════════════════════════════════════════════
+//  STORY / ORDERS
+// ══════════════════════════════════════════════════════
+const STORY = [
+  {
+    customer:'Sugeng',
+    avatar:'👨‍🔧',
+    greeting:'Halo! Aku butuh printer portabel buat print dari USB.',
+    machine:'Printer Alpha 1.12',
+    desc:'Bikin printer dari USB Porter → File Input Connector → Printer Chipset α1.12. Ukuran total harus ≤ 1m×1m (≤4×4 grid cell).',
+    check: (comps, wires) => validatePrinterAlpha112(comps, wires),
+    reward:[190,225],
+    timeLimit: 300,
+  },
+  {
+    customer:'Dewi',
+    avatar:'👩‍💼',
+    greeting:'Saya perlu piston otomatis, dipicu tombol.',
+    machine:'Piston Automatis',
+    desc:'Bikin: Button → Sticky Mover (type forward) → Long Rod. Ketiga komponen harus terhubung benar.',
+    check: (comps, wires) => validatePiston(comps, wires),
+    reward:[130,180],
+    timeLimit: 240,
+  },
+  {
+    customer:'Pak Budi',
+    avatar:'👴',
+    greeting:'Tolong buatkan detektor suara otomatis.',
+    machine:'Detektor Suara',
+    desc:'Detector hover → Sound Player. Pas cursor hover detektor, suara langsung bunyi.',
+    check: (comps, wires) => validateDetectorSound(comps, wires),
+    reward:[100,140],
+    timeLimit: 200,
+  },
+  {
+    customer:'Raditya Wijaya Kusuma',
+    avatar:'🕴',
+    greeting:'Aku gak mau pencet tombol terus-terusan. Bikin yang otomatis nyala sendiri tiap beberapa detik buat mainin suara.',
+    machine:'Auto Alarm Berkala',
+    desc:'Bikin: Timer → Sound Player. Timer harus diset interval ≤ 5 detik dan harus berhasil aktif minimal sekali.',
+    check: (comps, wires) => validateTimerAlarm(comps, wires),
+    reward:[150,200],
+    timeLimit: 240,
+  },
+  {
+    customer:'Kirana Adiratna Putri',
+    avatar:'👩‍🎨',
+    greeting:'Aku lagi bikin instalasi seni interaktif. Aku butuh sesuatu yang gerak terus tanpa disentuh — pakai mesin penggerak otomatis.',
+    machine:'Penggerak Otomatis Cube',
+    desc:'Bikin: Timer → Mover (arah apapun) → Cube. Timer harus aktif dan berhasil menggerakkan Cube minimal sekali.',
+    check: (comps, wires) => validateTimerMover(comps, wires),
+    reward:[170,220],
+    timeLimit: 260,
+  },
+  {
+    customer:'Surya Aditama Negara',
+    avatar:'🧑‍🚀',
+    greeting:'Aku denger dari rumor di kota ini ada teknologi pemindah ruang instan. Bisa bikinin aku dua portal yang nyambung?',
+    machine:'Pasangan Portal Pertama',
+    desc:'Bikin 2 Portal di kanvas dan pasangkan keduanya (klik konektor universal di masing-masing portal).',
+    check: (comps, wires) => validatePortalPairOnly(comps, wires),
+    reward:[180,230],
+    timeLimit: 220,
+  },
+  {
+    customer:'Mahesa Wirandaru',
+    avatar:'🧔',
+    greeting:'Portal doang gak guna kalau gak ada yang ngelewatin. Buatin aku mesin yang dorong barang masuk portal sampe nongol di portal lain.',
+    machine:'Teleporter Cube',
+    desc:'Bikin: Button → Mover → Cube, lalu pasangkan 2 Portal sehingga saat Cube didorong masuk Portal A, dia muncul di Portal B.',
+    check: (comps, wires) => validatePortalTeleportSetup(comps, wires),
+    reward:[220,280],
+    timeLimit: 300,
+  },
+  {
+    customer:'Anindya Larasati Wibowo',
+    avatar:'👩‍🔬',
+    greeting:'Aku riset percetakan otomatis tanpa campur tangan manusia. Tolong bikin printer yang nge-print sendiri pakai timer.',
+    machine:'Printer Otomatis Berkala',
+    desc:'Bikin: USB Porter → File Input Connector → Printer Chipset (apa saja), dan tambahkan Timer yang terhubung supaya proses bisa dipicu otomatis tiap beberapa detik.',
+    check: (comps, wires) => validateTimerPrinter(comps, wires),
+    reward:[230,290],
+    timeLimit: 320,
+  },
+  {
+    customer:'Bayu Setiawan Pradipta',
+    avatar:'👷',
+    greeting:'Aku punya gudang yang butuh sistem pemindahan barang antar ruangan otomatis, tanpa tombol, jalan terus sendiri.',
+    machine:'Sistem Logistik Portal Otomatis',
+    desc:'Bikin: Timer → Mover → Cube, dan 2 Portal terpasang sehingga Cube otomatis ke-teleport setiap kali timer aktif dan mendorongnya masuk portal.',
+    check: (comps, wires) => validateAutoPortalLogistics(comps, wires),
+    reward:[260,320],
+    timeLimit: 340,
+  },
+  {
+    customer:'Citra Permata Dewanti',
+    avatar:'👩‍🚒',
+    greeting:'Aku butuh alarm darurat ganda — bisa dipicu manual pakai tombol, atau otomatis kalau gak ada yang jaga, pakai timer.',
+    machine:'Alarm Darurat Ganda',
+    desc:'Bikin: Button DAN Timer, keduanya terhubung ke Sound Player yang sama. Sound Player harus sudah ada suaranya.',
+    check: (comps, wires) => validateDualAlarm(comps, wires),
+    reward:[200,260],
+    timeLimit: 260,
+  },
+  {
+    customer:'Eka Nugraha Saputra',
+    avatar:'🧑‍🏭',
+    greeting:'Aku mau lihat preview cetakan otomatis tiap interval pendek tanpa harus pencet apa-apa. Set timernya cepat ya, max 3 detik.',
+    machine:'Preview Printer Cepat',
+    desc:'Bikin: Timer (interval ≤ 3 detik) → langsung atau lewat jalur lain ke Printer Chipset Omega manapun, dengan USB+File Connector terpasang dan data USB ter-load.',
+    check: (comps, wires) => validateFastTimerPrinter(comps, wires),
+    reward:[280,340],
+    timeLimit: 340,
+  },
+  {
+    customer:'Galih Prasetyo Nugroho',
+    avatar:'🧙',
+    greeting:'Aku pengembang game indie. Aku mau bikin trap teleport yang triggernya pakai detector, jadi pas didekati otomatis kepindah.',
+    machine:'Trap Teleport Detector',
+    desc:'Bikin: Detector → Mover → Cube, dengan 2 Portal terpasang. Saat Cube melewati Portal harus berhasil teleport (validasi struktur jalur).',
+    check: (comps, wires) => validateDetectorPortalTrap(comps, wires),
+    reward:[300,360],
+    timeLimit: 360,
+  },
+  {
+    customer:'Wulandari Anggraeni Putri',
+    avatar:'👑',
+    greeting:'Ini permintaan terakhirku, dan paling rumit: aku mau pabrik mini yang jalan sendiri — timer mendorong barang lewat portal ke printer otomatis, semua tanpa sentuhan manusia.',
+    machine:'Pabrik Mini Otonom',
+    desc:'Mesin lengkap: Timer → Mover → Cube melewati 2 Portal terpasang, DITAMBAH jalur terpisah USB Porter → File Connector → Printer Chipset yang juga dipicu Timer (boleh Timer yang sama atau Timer kedua).',
+    check: (comps, wires) => validateMiniFactory(comps, wires),
+    reward:[400,500],
+    timeLimit: 420,
+  },
+];
+
+let storyIndex = 0;
+
+// ══════════════════════════════════════════════════════
+//  CANVAS SETUP
+// ══════════════════════════════════════════════════════
+const CELL = 32;
+const TILES_PER_METER = 10;
+const CANVAS_W = 60; // total scrollable tiles wide
+const CANVAS_H = 50; // total scrollable tiles tall
+
+function initCanvas() {
+  const gc = document.getElementById('game-canvas');
+  gc.style.width  = (CANVAS_W * CELL) + 'px';
+  gc.style.height = (CANVAS_H * CELL) + 'px';
+  const svg = document.getElementById('wire-layer');
+  svg.setAttribute('width',  CANVAS_W * CELL);
+  svg.setAttribute('height', CANVAS_H * CELL);
+  updateBoundary();
+}
+
+function updateBoundary() {
+  const b = document.getElementById('canvas-boundary');
+  const wPx = S.canvasW_m * TILES_PER_METER * CELL;
+  const hPx = S.canvasH_m * TILES_PER_METER * CELL;
+  b.style.width  = wPx + 'px';
+  b.style.height = hPx + 'px';
+}
+
+// ── Canvas size picker shown before first build ──
+function showCanvasPicker(onDone) {
+  const sizes = [
+    {w:1,h:1,label:'1×1m', note:'10×10 tiles'},
+    {w:2,h:1,label:'2×1m', note:'20×10 tiles'},
+    {w:2,h:2,label:'2×2m', note:'20×20 tiles'},
+    {w:3,h:2,label:'3×2m', note:'30×20 tiles'},
+    {w:3,h:3,label:'3×3m', note:'30×30 tiles'},
+    {w:5,h:5,label:'5×5m', note:'50×50 tiles'},
+  ];
+  let chosen = sizes[2]; // default 2×2
+
+  const overlay = document.createElement('div');
+  overlay.className = 'canvas-picker-overlay';
+  overlay.innerHTML = `<div class="canvas-picker">
+    <h2>⚙ PILIH UKURAN WORKSPACE</h2>
+    <p>1 meter = 10 tiles. Pilih sesuai kebutuhan mesin kamu.</p>
+    <div class="picker-sizes">
+      ${sizes.map((s,i)=>`<button class="picker-size-btn${i===2?' active':''}" data-i="${i}">
+        ${s.label}<span class="ps-dim">${s.note}</span>
+      </button>`).join('')}
+    </div>
+    <button class="picker-start-btn">▶ MULAI BUILD</button>
+  </div>`;
+
+  overlay.querySelectorAll('.picker-size-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      overlay.querySelectorAll('.picker-size-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      chosen = sizes[+btn.dataset.i];
+    });
+  });
+  overlay.querySelector('.picker-start-btn').addEventListener('click', () => {
+    S.canvasW_m = chosen.w;
+    S.canvasH_m = chosen.h;
+    updateBoundary();
+    overlay.remove();
+    if (onDone) onDone();
+  });
+  document.getElementById('modal-container').appendChild(overlay);
+}
+
+// ══════════════════════════════════════════════════════
+//  SHOP RENDER
+// ══════════════════════════════════════════════════════
+function renderShop() {
+  const list = document.getElementById('shop-list');
+  list.innerHTML = '';
+  SHOP_ORDER.forEach(group => {
+    const catEl = document.createElement('div');
+    catEl.className = 'shop-cat';
+    catEl.textContent = group.cat;
+    list.appendChild(catEl);
+    group.items.forEach(key => {
+      const def = COMP_DEFS[key];
+      if (!def) return;
+      const price = def.price;
+      const canAfford = S.sandboxMode || S.money >= price;
+      const el = document.createElement('div');
+      el.className = 'shop-item' + (price===0||S.sandboxMode?' free':'') + (!canAfford?' disabled':'');
+      el.draggable = true;
+      el.dataset.type = key;
+      el.innerHTML = `<div class="item-name">${def.icon} ${def.label}${def.subtype?' <span style="color:var(--accent2)">['+def.subtype+']</span>':''}</div>
+        <div class="item-price">${S.sandboxMode||price===0?'FREE':'$'+price}</div>
+        <div class="item-size">${def.w}×${def.h} cells</div>`;
+      el.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('compType', key);
+      });
+
+      // ── TOUCH: hold 180ms to drag, quick tap just scrolls ──
+      el.addEventListener('touchstart', e => {
+        const t = e.touches[0];
+        const startX = t.clientX, startY = t.clientY;
+        let dragTimer = setTimeout(() => {
+          startShopTouchDrag(key, def, startX, startY);
+        }, 180);
+
+        const cancel = () => { clearTimeout(dragTimer); };
+        const onMove = (ev) => {
+          const mt = ev.touches[0];
+          if (Math.abs(mt.clientY - startY) > 8) { clearTimeout(dragTimer); } // vertical = scroll
+        };
+        el.addEventListener('touchmove', onMove, {once:true, passive:true});
+        el.addEventListener('touchend',  cancel, {once:true});
+      }, {passive:true});
+
+      list.appendChild(el);
+    });
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  DROP ON CANVAS
+// ══════════════════════════════════════════════════════
+document.getElementById('game-canvas').addEventListener('dragover', e => e.preventDefault());
+document.getElementById('game-canvas').addEventListener('drop', e => {
+  e.preventDefault();
+  const type = e.dataTransfer.getData('compType');
+  if (!type || !COMP_DEFS[type]) return;
+  const def = COMP_DEFS[type];
+  if (!S.sandboxMode && S.money < def.price) { toast('Not enough money!','error'); return; }
+  const rect = document.getElementById('game-canvas').getBoundingClientRect();
+  const rawX = e.clientX - rect.left;
+  const rawY = e.clientY - rect.top;
+  const gx = Math.round(rawX / CELL) - Math.floor(def.w/2);
+  const gy = Math.round(rawY / CELL) - Math.floor(def.h/2);
+  const x = Math.max(0, Math.min(CANVAS_W - def.w, gx)) * CELL;
+  const y = Math.max(0, Math.min(CANVAS_H - def.h, gy)) * CELL;
+  saveUndo();
+  if (!S.sandboxMode && def.price > 0) {
+    S.money -= def.price;
+    updateMoney();
+  }
+  spawnComponent(type, x, y);
+  renderShop();
+});
+
+// ══════════════════════════════════════════════════════
+//  SPAWN COMPONENT
+// ══════════════════════════════════════════════════════
+function spawnComponent(type, x, y, extraData={}) {
+  const def = COMP_DEFS[type];
+  const id = 'c' + (S.nextId++);
+  const comp = { id, type, x, y, w: def.w * CELL, h: def.h * CELL, data: {...extraData} };
+  S.components.push(comp);
+  renderComponent(comp);
+  if (type === 'timer_gate') {
+    if (comp.data.intervalSec === undefined) comp.data.intervalSec = 3;
+    startTimerComp(comp);
+  }
+  return comp;
+}
+
+function renderComponent(comp) {
+  const def = COMP_DEFS[comp.type];
+  const el = document.createElement('div');
+  el.className = 'comp';
+  el.id = comp.id;
+  el.style.left = comp.x + 'px';
+  el.style.top = comp.y + 'px';
+  el.style.width = comp.w + 'px';
+  el.style.height = comp.h + 'px';
+
+  el.innerHTML = `<div class="comp-inner">
+    <div class="comp-icon">${def.icon}</div>
+    <div class="comp-label">${def.label}</div>
+    ${def.subtype?`<div class="comp-subtype">${def.subtype}</div>`:''}
+  </div>`;
+
+  if (comp.type === 'portal') el.classList.add('portal-comp');
+  if (comp.type === 'timer_gate') {
+    el.classList.add('timer-comp');
+    if (comp.data.intervalSec === undefined) comp.data.intervalSec = 3;
+    const badge = document.createElement('div');
+    badge.className = 'timer-badge';
+    badge.textContent = comp.data.intervalSec + 's';
+    el.appendChild(badge);
+  }
+
+  // ports
+  const ports = def.ports || {};
+  if (ports.output) {
+    const p = document.createElement('div');
+    p.className = 'port output';
+    p.dataset.compId = comp.id;
+    p.dataset.portType = 'output';
+    p.title = 'Output';
+    el.appendChild(p);
+  }
+  if (ports.input) {
+    const p = document.createElement('div');
+    p.className = 'port input';
+    p.dataset.compId = comp.id;
+    p.dataset.portType = 'input';
+    p.title = 'Input';
+    el.appendChild(p);
+  }
+  if (ports.universal) {
+    const p = document.createElement('div');
+    p.className = 'port universal';
+    p.dataset.compId = comp.id;
+    p.dataset.portType = 'universal';
+    p.title = 'Universal Connector';
+    el.appendChild(p);
+  }
+
+  // drag move (mouse)
+  el.addEventListener('mousedown', onCompMouseDown);
+  // drag move (touch)
+  el.addEventListener('touchstart', onCompTouchStart, {passive:false});
+
+  // port wiring (mouse + touch)
+  el.querySelectorAll('.port').forEach(p => {
+    if (p.dataset.portType === 'universal') {
+      p.addEventListener('mousedown', e => { e.stopPropagation(); e.preventDefault(); onUniversalPortClick(comp.id); });
+      p.addEventListener('touchstart', e => { e.stopPropagation(); e.preventDefault(); onUniversalPortClick(comp.id); }, {passive:false});
+    } else {
+      p.addEventListener('mousedown', onPortMouseDown);
+      p.addEventListener('touchstart', onPortTouchStart, {passive:false});
+    }
+  });
+
+  // button click
+  if (comp.type === 'button') {
+    el.addEventListener('click', (e) => {
+      if (S.wiringFrom) return;
+      activateComponent(comp.id);
+    });
+    el.style.cursor = 'pointer';
+  }
+
+  // detector hover
+  if (comp.type === 'detector') {
+    el.addEventListener('mouseenter', () => {
+      el.classList.add('detector-hover');
+      activateComponent(comp.id);
+    });
+    el.addEventListener('mouseleave', () => {
+      el.classList.remove('detector-hover');
+    });
+  }
+
+  // click to select
+  el.addEventListener('click', (e) => {
+    if (e.target.classList.contains('port')) return;
+    selectComp(comp.id);
+  });
+
+  document.getElementById('game-canvas').appendChild(el);
+}
+
+// ══════════════════════════════════════════════════════
+//  SELECTION + PROPERTIES
+// ══════════════════════════════════════════════════════
+function selectComp(id) {
+  document.querySelectorAll('.comp.selected').forEach(e => e.classList.remove('selected'));
+  S.selected = id;
+  if (id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('selected');
+    renderProps(id);
+  }
+}
+
+function renderProps(id) {
+  const comp = S.components.find(c => c.id === id);
+  if (!comp) return;
+  const def = COMP_DEFS[comp.type];
+  const box = document.getElementById('prop-content');
+  let html = `<div class="prop-row"><span class="prop-key">type: </span><span class="prop-val">${def.label}</span></div>`;
+  if (def.subtype) html += `<div class="prop-row"><span class="prop-key">model: </span><span class="prop-val">${def.subtype}</span></div>`;
+  html += `<div class="prop-row"><span class="prop-key">size: </span><span class="prop-val">${def.w}×${def.h} cells</span></div>`;
+  html += `<div class="prop-row"><span class="prop-key">pos: </span><span class="prop-val">${comp.x/CELL},${comp.y/CELL}</span></div>`;
+
+  if (comp.type === 'usb_porter') {
+    const fname = comp.data.fileName || 'empty';
+    html += `<div class="prop-row"><span class="prop-key">usb: </span><span class="prop-val">${fname}</span></div>`;
+    html += `<button class="usb-upload-btn" onclick="openUSBUpload('${comp.id}')">📂 Load USB File</button>`;
+    if (comp.data.fileLoaded) html += `<div class="file-loaded">✓ ${comp.data.fileName}</div>`;
+  }
+
+  if (comp.type === 'sound_player') {
+    const sname = comp.data.soundName || 'no sound';
+    html += `<div class="prop-row"><span class="prop-key">sound: </span><span class="prop-val">${sname}</span></div>`;
+    html += `<button class="usb-upload-btn" onclick="openSoundUpload('${comp.id}')">🎵 Load Sound</button>`;
+    if (comp.data.soundLoaded) html += `<div class="file-loaded">✓ ${comp.data.soundName}</div>`;
+  }
+
+  if (comp.type === 'timer_gate') {
+    const sec = comp.data.intervalSec ?? 3;
+    html += `<div class="prop-row"><span class="prop-key">interval: </span><span class="prop-val">${sec}s</span></div>`;
+    html += `<input type="number" min="1" max="60" step="1" value="${sec}" class="timer-interval-input" style="width:100%;margin-top:6px;background:var(--bg);color:var(--text);border:1px solid var(--border);padding:4px;font-family:inherit;" onchange="setTimerInterval('${comp.id}', this.value)">`;
+    html += `<div class="prop-row" style="margin-top:6px;"><span class="prop-key">status: </span><span class="prop-val">${S.timerIntervals[comp.id] ? '🟢 running' : '⚪ stopped'}</span></div>`;
+  }
+
+  if (comp.type === 'portal') {
+    const paired = S.portalPair && S.portalPair.includes(comp.id);
+    html += `<div class="prop-row"><span class="prop-key">paired: </span><span class="prop-val">${paired ? '🌀 yes' : 'no'}</span></div>`;
+  }
+
+  document.getElementById('prop-content').innerHTML = html;
+}
+
+function setTimerInterval(compId, value) {
+  const comp = S.components.find(c => c.id === compId);
+  if (!comp) return;
+  const sec = Math.max(1, Math.min(60, parseInt(value) || 3));
+  comp.data.intervalSec = sec;
+  const el = document.getElementById(compId);
+  if (el) { const badge = el.querySelector('.timer-badge'); if (badge) badge.textContent = sec + 's'; }
+  if (S.timerIntervals[compId]) {
+    startTimerComp(comp); // restart with new interval
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  TIMER SYSTEM (auto-trigger every N seconds, real seconds not ticks)
+// ══════════════════════════════════════════════════════
+function startTimerComp(comp) {
+  stopTimerComp(comp.id);
+  const sec = comp.data.intervalSec ?? 3;
+  S.timerIntervals[comp.id] = setInterval(() => {
+    const el = document.getElementById(comp.id);
+    if (!el) { stopTimerComp(comp.id); return; }
+    el.classList.add('timer-active');
+    setTimeout(() => el && el.classList.remove('timer-active'), 400);
+    activateComponent(comp.id);
+  }, sec * 1000);
+}
+
+function stopTimerComp(compId) {
+  if (S.timerIntervals[compId]) {
+    clearInterval(S.timerIntervals[compId]);
+    delete S.timerIntervals[compId];
+  }
+}
+
+function stopAllTimers() {
+  Object.keys(S.timerIntervals).forEach(stopTimerComp);
+}
+
+// ══════════════════════════════════════════════════════
+//  USB / SOUND UPLOAD
+// ══════════════════════════════════════════════════════
+let pendingUSBCompId = null;
+let pendingSoundCompId = null;
+
+function openUSBUpload(compId) {
+  pendingUSBCompId = compId;
+  document.getElementById('usb-file-input').click();
+}
+
+document.getElementById('usb-file-input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file || !pendingUSBCompId) return;
+  const comp = S.components.find(c => c.id === pendingUSBCompId);
+  if (!comp) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    comp.data.fileLoaded = true;
+    comp.data.fileName = file.name;
+    comp.data.fileData = ev.target.result;
+    comp.data.fileType = file.type;
+    renderProps(pendingUSBCompId);
+    toast(`USB loaded: ${file.name}`, 'success');
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+});
+
+function openSoundUpload(compId) {
+  pendingSoundCompId = compId;
+  document.getElementById('sound-file-input').click();
+}
+
+document.getElementById('sound-file-input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file || !pendingSoundCompId) return;
+  const comp = S.components.find(c => c.id === pendingSoundCompId);
+  if (!comp) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    comp.data.soundLoaded = true;
+    comp.data.soundName = file.name;
+    comp.data.soundData = ev.target.result;
+    renderProps(pendingSoundCompId);
+    toast(`Sound loaded: ${file.name}`, 'success');
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+});
+
+// ══════════════════════════════════════════════════════
+//  COMPONENT DRAG (MOVE)
+// ══════════════════════════════════════════════════════
+function onCompMouseDown(e) {
+  if (e.target.classList.contains('port')) return;
+  e.stopPropagation();
+  const el = e.currentTarget;
+  const comp = S.components.find(c => c.id === el.id);
+  if (!comp) return;
+  const rect = document.getElementById('game-canvas').getBoundingClientRect();
+  S.dragging = {
+    compId: comp.id,
+    offsetX: e.clientX - rect.left - comp.x,
+    offsetY: e.clientY - rect.top - comp.y,
+  };
+}
+
+document.addEventListener('mousemove', e => {
+  if (S.dragging) {
+    const rect = document.getElementById('game-canvas').getBoundingClientRect();
+    const comp = S.components.find(c => c.id === S.dragging.compId);
+    if (!comp) return;
+    const rawX = e.clientX - rect.left - S.dragging.offsetX;
+    const rawY = e.clientY - rect.top - S.dragging.offsetY;
+    const def = COMP_DEFS[comp.type];
+    const gx = Math.round(rawX / CELL) * CELL;
+    const gy = Math.round(rawY / CELL) * CELL;
+    comp.x = Math.max(0, Math.min((CANVAS_W - def.w) * CELL, gx));
+    comp.y = Math.max(0, Math.min((CANVAS_H - def.h) * CELL, gy));
+    const el = document.getElementById(comp.id);
+    if (el) { el.style.left = comp.x + 'px'; el.style.top = comp.y + 'px'; }
+    renderWires();
+  }
+
+  // wire preview
+  if (S.wiringFrom) {
+    const rect = document.getElementById('game-canvas').getBoundingClientRect();
+    S.mouseX = e.clientX - rect.left;
+    S.mouseY = e.clientY - rect.top;
+    updateWirePreview();
+  }
+
+  // detector check
+  S.components.filter(c => c.type === 'detector').forEach(c => {
+    const el = document.getElementById(c.id);
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+    if (inside) el.classList.add('detector-hover');
+    else el.classList.remove('detector-hover');
+  });
+});
+
+document.addEventListener('mouseup', () => {
+  S.dragging = null;
+});
+
+// ══════════════════════════════════════════════════════
+//  PORT WIRING
+// ══════════════════════════════════════════════════════
+function onPortMouseDown(e) {
+  e.stopPropagation();
+  e.preventDefault();
+  const port = e.currentTarget;
+  const compId = port.dataset.compId;
+  const portType = port.dataset.portType;
+
+  if (!S.wiringFrom) {
+    if (portType === 'output') {
+      S.wiringFrom = { compId, portType };
+      port.style.boxShadow = '0 0 8px var(--yellow)';
+      showWirePreview();
+    }
+  } else {
+    if (portType === 'input' && compId !== S.wiringFrom.compId) {
+      createWire(S.wiringFrom.compId, compId);
+      cancelWiring();
+    } else {
+      cancelWiring();
+    }
+  }
+}
+
+function getPortPos(compId, portType) {
+  const comp = S.components.find(c => c.id === compId);
+  if (!comp) return {x:0,y:0};
+  if (portType === 'output') return { x: comp.x + comp.w, y: comp.y + comp.h/2 };
+  if (portType === 'input') return { x: comp.x, y: comp.y + comp.h/2 };
+  return {x:0,y:0};
+}
+
+function createWire(fromId, toId) {
+  // remove existing wire to same input
+  S.wires = S.wires.filter(w => !(w.toCompId === toId));
+  const wid = 'w' + (S.nextId++);
+  S.wires.push({ id: wid, fromCompId: fromId, toCompId: toId });
+  updatePortConnected();
+  renderWires();
+  toast('Connected!', 'success');
+}
+
+function updatePortConnected() {
+  document.querySelectorAll('.port').forEach(p => p.classList.remove('connected'));
+  S.wires.forEach(w => {
+    const fromEl = document.querySelector(`#${w.fromCompId} .port.output`);
+    const toEl = document.querySelector(`#${w.toCompId} .port.input`);
+    if (fromEl) fromEl.classList.add('connected');
+    if (toEl) toEl.classList.add('connected');
+  });
+  document.querySelectorAll('.comp.portal-comp').forEach(el => el.classList.remove('portal-paired'));
+  if (S.portalPair) {
+    S.portalPair.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.classList.add('portal-paired'); const p = el.querySelector('.port.universal'); if (p) p.classList.add('connected'); }
+    });
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  PORTAL SYSTEM (max 2 portal, universal connector)
+// ══════════════════════════════════════════════════════
+let portalSelectFirst = null;
+
+function onUniversalPortClick(compId) {
+  const portals = S.components.filter(c => c.type === 'portal');
+  if (portals.length < 2) {
+    toast('Butuh 2 portal buat dipasangin!', 'error');
+    return;
+  }
+  if (!portalSelectFirst) {
+    portalSelectFirst = compId;
+    toast('Portal dipilih. Klik portal lain buat pasangin.', '');
+    const el = document.getElementById(compId);
+    if (el) el.querySelector('.port.universal').style.boxShadow = '0 0 8px var(--yellow)';
+    return;
+  }
+  if (portalSelectFirst === compId) {
+    cancelPortalSelect();
+    return;
+  }
+  S.portalPair = [portalSelectFirst, compId];
+  cancelPortalSelect();
+  updatePortConnected();
+  toast('🌀 Portal terhubung!', 'success');
+}
+
+function cancelPortalSelect() {
+  if (portalSelectFirst) {
+    const el = document.getElementById(portalSelectFirst);
+    if (el) { const p = el.querySelector('.port.universal'); if (p) p.style.boxShadow=''; }
+  }
+  portalSelectFirst = null;
+}
+
+function getPortalAt(x, y, w, h, excludeId) {
+  // returns a portal component whose bounding box overlaps the given box
+  return S.components.find(c => {
+    if (c.type !== 'portal' || c.id === excludeId) return false;
+    return x < c.x + c.w && x + w > c.x && y < c.y + c.h && y + h > c.y;
+  });
+}
+
+function tryPortalTeleport(comp) {
+  if (!S.portalPair) return false;
+  const def = COMP_DEFS[comp.type];
+  const [pidA, pidB] = S.portalPair;
+  const hitA = getPortalAt(comp.x, comp.y, comp.w, comp.h, comp.id);
+  if (!hitA || hitA.type !== 'portal') return false;
+  if (hitA.id !== pidA && hitA.id !== pidB) return false;
+  const destId = hitA.id === pidA ? pidB : pidA;
+  const dest = S.components.find(c => c.id === destId);
+  if (!dest) return false;
+  // center the moved object on the destination portal
+  comp.x = Math.round(dest.x + (dest.w - comp.w) / 2);
+  comp.y = Math.round(dest.y + (dest.h - comp.h) / 2);
+  const el = document.getElementById(comp.id);
+  if (el) {
+    el.style.left = comp.x + 'px';
+    el.style.top = comp.y + 'px';
+  }
+  const destEl = document.getElementById(destId);
+  const srcEl = document.getElementById(hitA.id);
+  [destEl, srcEl].forEach(e => {
+    if (!e) return;
+    e.classList.add('portal-teleport');
+    setTimeout(() => e.classList.remove('portal-teleport'), 350);
+  });
+  renderWires();
+  return true;
+}
+
+let previewLine = null;
+function showWirePreview() {
+  const svg = document.getElementById('wire-layer');
+  if (previewLine) previewLine.remove();
+  previewLine = document.createElementNS('http://www.w3.org/2000/svg','path');
+  previewLine.setAttribute('class','wire-preview');
+  svg.appendChild(previewLine);
+}
+
+function updateWirePreview() {
+  if (!previewLine || !S.wiringFrom) return;
+  const from = getPortPos(S.wiringFrom.compId, 'output');
+  const d = bezierPath(from.x, from.y, S.mouseX, S.mouseY);
+  previewLine.setAttribute('d', d);
+}
+
+function cancelWiring() {
+  S.wiringFrom = null;
+  if (previewLine) { previewLine.remove(); previewLine = null; }
+  document.querySelectorAll('.port').forEach(p => p.style.boxShadow='');
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') cancelWiring();
+  if ((e.key === 'Delete' || e.key === 'Backspace') && document.activeElement === document.body) deleteSelected();
+  // Ctrl+Alt+M → spawn USB stick
+  if (e.ctrlKey && e.altKey && (e.key === 'm' || e.key === 'M')) {
+    e.preventDefault();
+    openUSBSpawn();
+  }
+});
+
+// ══════════════════════════════════════════════════════
+//  USB ITEM SYSTEM (Ctrl+Alt+M)
+// ══════════════════════════════════════════════════════
+let usbFileInput2 = null;
+
+function openUSBSpawn() {
+  // create hidden input
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = 'image/*,audio/*';
+  inp.style.display = 'none';
+  document.body.appendChild(inp);
+  inp.addEventListener('change', ev => {
+    const file = ev.target.files[0];
+    if (!file) { inp.remove(); return; }
+    const reader = new FileReader();
+    reader.onload = re => {
+      spawnUSBItem(file.name, re.target.result, file.type);
+      inp.remove();
+    };
+    reader.readAsDataURL(file);
+  });
+  inp.click();
+}
+
+function spawnUSBItem(fileName, fileData, fileType) {
+  const id = 'usb' + (S.nextId++);
+  // place near center of visible canvas
+  const scroll = document.getElementById('canvas-scroll');
+  const cx = scroll.scrollLeft + scroll.clientWidth/2 - 24;
+  const cy = scroll.scrollTop  + scroll.clientHeight/2 - 14;
+  const item = { id, fileName, fileData, fileType, x: cx, y: cy, insertedInto: null };
+  S.usbItems.push(item);
+  renderUSBItem(item);
+  toast(`🔌 USB "${fileName}" spawned — drag onto a USB Porter`, 'success');
+}
+
+function renderUSBItem(item) {
+  const el = document.createElement('div');
+  el.className = 'usb-item';
+  el.id = item.id;
+  el.style.left = item.x + 'px';
+  el.style.top  = item.y + 'px';
+  el.innerHTML  = `💾<span class="usb-label">${item.fileName}</span>`;
+  el.title = item.fileName;
+
+  // mouse drag
+  el.addEventListener('mousedown', ev => {
+    ev.stopPropagation();
+    const rect = document.getElementById('game-canvas').getBoundingClientRect();
+    const offX = ev.clientX - rect.left - item.x;
+    const offY = ev.clientY - rect.top  - item.y;
+    const onMove = mv => {
+      item.x = mv.clientX - rect.left - offX;
+      item.y = mv.clientY - rect.top  - offY;
+      el.style.left = item.x + 'px';
+      el.style.top  = item.y + 'px';
+    };
+    const onUp = mu => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      tryInsertUSB(item, mu.clientX, mu.clientY);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+
+  // touch drag
+  el.addEventListener('touchstart', ev => {
+    ev.stopPropagation();
+    const t = ev.touches[0];
+    const rect = document.getElementById('game-canvas').getBoundingClientRect();
+    const offX = t.clientX - rect.left - item.x;
+    const offY = t.clientY - rect.top  - item.y;
+    const onMove = mv => {
+      mv.preventDefault();
+      const tt = mv.touches[0];
+      item.x = tt.clientX - rect.left - offX;
+      item.y = tt.clientY - rect.top  - offY;
+      el.style.left = item.x + 'px';
+      el.style.top  = item.y + 'px';
+    };
+    const onUp = mu => {
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend',  onUp);
+      const tu = mu.changedTouches[0];
+      tryInsertUSB(item, tu.clientX, tu.clientY);
+    };
+    document.addEventListener('touchmove', onMove, {passive:false});
+    document.addEventListener('touchend',  onUp);
+  }, {passive:true});
+
+  document.getElementById('game-canvas').appendChild(el);
+}
+
+function tryInsertUSB(item, clientX, clientY) {
+  // find USB Porter under drop point
+  const el = document.elementFromPoint(clientX, clientY);
+  if (!el) return;
+  const compEl = el.closest('.comp');
+  if (!compEl) return;
+  const comp = S.components.find(c => c.id === compEl.id);
+  if (!comp || comp.type !== 'usb_porter') return;
+
+  // eject any existing USB from that porter
+  S.usbItems.forEach(u => {
+    if (u.insertedInto === comp.id) {
+      u.insertedInto = null;
+      const uel = document.getElementById(u.id);
+      if (uel) uel.classList.remove('inserted');
+    }
+  });
+
+  // insert
+  item.insertedInto = comp.id;
+  comp.data.fileLoaded = true;
+  comp.data.fileName   = item.fileName;
+  comp.data.fileData   = item.fileData;
+  comp.data.fileType   = item.fileType;
+
+  // snap USB icon onto the porter visually
+  const uEl = document.getElementById(item.id);
+  if (uEl) {
+    uEl.classList.add('inserted');
+    uEl.style.left = (comp.x + comp.w/2 - 24) + 'px';
+    uEl.style.top  = (comp.y + comp.h/2 - 14) + 'px';
+  }
+
+  // porter label update
+  const inner = compEl.querySelector('.comp-label');
+  if (inner) inner.textContent = '✓ ' + item.fileName;
+
+  // auto-send data down the wire
+  activateComponent(comp.id);
+
+  if (S.selected === comp.id) renderProps(comp.id);
+  toast(`✓ USB inserted into USB Porter`, 'success');
+}
+
+function bezierPath(x1,y1,x2,y2) {
+  const dx = Math.abs(x2-x1)*0.5 || 40;
+  return `M${x1},${y1} C${x1+dx},${y1} ${x2-dx},${y2} ${x2},${y2}`;
+}
+
+function renderWires() {
+  const svg = document.getElementById('wire-layer');
+  // remove old wires (keep preview)
+  svg.querySelectorAll('.wire').forEach(e=>e.remove());
+  S.wires.forEach(w => {
+    const from = getPortPos(w.fromCompId, 'output');
+    const to = getPortPos(w.toCompId, 'input');
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('class','wire' + (w.active?' active-wire':''));
+    path.setAttribute('d', bezierPath(from.x,from.y,to.x,to.y));
+    path.dataset.wireId = w.id;
+    path.addEventListener('click', () => {
+      if (confirm('Remove this wire?')) {
+        S.wires = S.wires.filter(ww => ww.id !== w.id);
+        updatePortConnected();
+        renderWires();
+      }
+    });
+    svg.appendChild(path);
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  ACTIVATION / SIGNAL PROPAGATION
+// ══════════════════════════════════════════════════════
+function activateComponent(id, visited=new Set()) {
+  if (visited.has(id)) return;
+  visited.add(id);
+
+  const comp = S.components.find(c => c.id === id);
+  if (!comp) return;
+  const el = document.getElementById(id);
+  if (el) {
+    el.classList.add('active-comp');
+    setTimeout(() => el && el.classList.remove('active-comp'), 500);
+  }
+
+  // Find all wires FROM this component
+  const outWires = S.wires.filter(w => w.fromCompId === id);
+  outWires.forEach(w => {
+    w.active = true;
+    const target = S.components.find(c => c.id === w.toCompId);
+    if (!target) return;
+
+    if (target.type === 'sound_player') {
+      playSound(target);
+    } else if (target.type === 'file_connector') {
+      // pass through data
+      const usbWires = S.wires.filter(ww => ww.toCompId === id);
+      if (usbWires.length > 0) {
+        const usbComp = S.components.find(c => c.id === usbWires[0].fromCompId);
+        if (usbComp && usbComp.data.fileData) {
+          target.data.fileData = usbComp.data.fileData;
+          target.data.fileType = usbComp.data.fileType;
+        }
+      }
+      activateComponent(target.id, visited);
+    } else if (target.type.startsWith('printer_')) {
+      // find filedata from file_connector connected to printer
+      processPrinter(target, id);
+    } else if (target.type.startsWith('mover_') || target.type.startsWith('sticky_mover')) {
+      activateMover(target, visited);
+    } else if (target.type === 'rod_long' || target.type === 'sphere' || target.type === 'cube') {
+      moveItem(target.id, getMoverDir(id));
+    } else {
+      activateComponent(target.id, visited);
+    }
+  });
+
+  // USB porter: data out
+  if (comp.type === 'usb_porter' && comp.data.fileLoaded) {
+    outWires.forEach(w => {
+      const target = S.components.find(c => c.id === w.toCompId);
+      if (target && target.type === 'file_connector') {
+        target.data.fileData = comp.data.fileData;
+        target.data.fileType = comp.data.fileType;
+        activateComponent(target.id, visited);
+      }
+    });
+  }
+
+  setTimeout(() => {
+    outWires.forEach(w => w.active = false);
+    renderWires();
+  }, 600);
+  renderWires();
+}
+
+function getMoverDir(moverId) {
+  const comp = S.components.find(c => c.id === moverId);
+  if (!comp) return 'forward';
+  if (comp.type.includes('forward')) return 'forward';
+  if (comp.type.includes('backward')) return 'backward';
+  if (comp.type.includes('left')) return 'left';
+  if (comp.type.includes('right')) return 'right';
+  return 'forward';
+}
+
+function activateMover(moverComp, visited) {
+  const el = document.getElementById(moverComp.id);
+  if (el) el.classList.add('mover-active');
+  setTimeout(() => el && el.classList.remove('mover-active'), 400);
+
+  const dir = getMoverDir(moverComp.id);
+  const outWires = S.wires.filter(w => w.fromCompId === moverComp.id);
+  outWires.forEach(w => {
+    moveItem(w.toCompId, dir, moverComp.type.startsWith('sticky'));
+  });
+  activateComponent(moverComp.id, visited);
+}
+
+function moveItem(compId, dir, sticky=false) {
+  const comp = S.components.find(c => c.id === compId);
+  if (!comp) return;
+  const def = COMP_DEFS[comp.type];
+  const dist = CELL * 2;
+  let dx=0, dy=0;
+  if (dir==='forward') dy=-dist;
+  else if (dir==='backward') dy=dist;
+  else if (dir==='left') dx=-dist;
+  else if (dir==='right') dx=dist;
+
+  const origX = comp.x, origY = comp.y;
+  comp.x = Math.max(0, Math.min((CANVAS_W-def.w)*CELL, comp.x+dx));
+  comp.y = Math.max(0, Math.min((CANVAS_H-def.h)*CELL, comp.y+dy));
+  const el = document.getElementById(compId);
+  if (el) { el.style.left=comp.x+'px'; el.style.top=comp.y+'px'; }
+  renderWires();
+
+  // portal check — if landed on a paired portal, teleport instantly
+  tryPortalTeleport(comp);
+
+  if (sticky) {
+    setTimeout(() => {
+      comp.x = origX; comp.y = origY;
+      const el2 = document.getElementById(compId);
+      if (el2) { el2.style.left=comp.x+'px'; el2.style.top=comp.y+'px'; }
+      renderWires();
+    }, 400);
+  }
+}
+
+function processPrinter(printerComp, fromId) {
+  // find file data from connected file_connector
+  let fileData = null, fileType = null;
+  const inWires = S.wires.filter(w => w.toCompId === printerComp.id);
+  inWires.forEach(w => {
+    const src = S.components.find(c => c.id === w.fromCompId);
+    if (src && src.data.fileData) {
+      fileData = src.data.fileData;
+      fileType = src.data.fileType;
+    }
+  });
+  if (!fileData) { toast('No file data in printer!','error'); return; }
+  if (fileType && fileType.startsWith('image/')) {
+    showPrinterOutput(printerComp.id, fileData);
+  } else {
+    toast('Printer only prints images!','error');
+  }
+}
+
+function showPrinterOutput(compId, imgData) {
+  const el = document.getElementById(compId);
+  if (!el) return;
+  let paper = el.querySelector('.print-output');
+  if (paper) paper.remove();
+  paper = document.createElement('div');
+  paper.className = 'print-output';
+  const img = document.createElement('img');
+  img.src = imgData;
+  paper.appendChild(img);
+  el.style.overflow = 'visible';
+  el.appendChild(paper);
+  toast('🖨 Printed!', 'success');
+}
+
+function playSound(comp) {
+  if (!comp.data.soundData) { toast('Sound Player has no sound loaded!','error'); return; }
+  const audio = new Audio(comp.data.soundData);
+  audio.play().catch(()=>{});
+}
+
+// ══════════════════════════════════════════════════════
+//  CANVAS CLICK → DESELECT / CANCEL WIRING
+// ══════════════════════════════════════════════════════
+document.getElementById('game-canvas').addEventListener('mousedown', e => {
+  if (e.target === document.getElementById('game-canvas') || e.target === document.getElementById('wire-layer')) {
+    if (S.wiringFrom) { cancelWiring(); return; }
+    selectComp(null);
+    document.getElementById('prop-content').innerHTML = '<span style="color:var(--text-dim);font-size:10px">nothing selected</span>';
+  }
+});
+
+// ══════════════════════════════════════════════════════
+//  TOOLBAR ACTIONS
+// ══════════════════════════════════════════════════════
+function clearAll() {
+  if (!confirm('Clear everything on the canvas?')) return;
+  saveUndo();
+  stopAllTimers();
+  S.portalPair = null;
+  cancelPortalSelect();
+  S.components.forEach(c => { const el=document.getElementById(c.id); if(el) el.remove(); });
+  S.components = [];
+  S.wires = [];
+  document.getElementById('wire-layer').innerHTML = '';
+  S.selected = null;
+}
+
+function deleteSelected() {
+  if (!S.selected) return;
+  saveUndo();
+  const idx = S.components.findIndex(c => c.id === S.selected);
+  if (idx < 0) return;
+  const deletedComp = S.components[idx];
+  if (deletedComp.type === 'timer_gate') stopTimerComp(deletedComp.id);
+  if (deletedComp.type === 'portal' && S.portalPair && S.portalPair.includes(deletedComp.id)) {
+    S.portalPair = null;
+  }
+  if (portalSelectFirst === deletedComp.id) portalSelectFirst = null;
+  const el = document.getElementById(S.selected);
+  if (el) el.remove();
+  S.wires = S.wires.filter(w => w.fromCompId !== S.selected && w.toCompId !== S.selected);
+  S.components.splice(idx, 1);
+  S.selected = null;
+  updatePortConnected();
+  renderWires();
+}
+
+function saveUndo() {
+  S.undoStack.push({
+    components: JSON.parse(JSON.stringify(S.components)),
+    wires: JSON.parse(JSON.stringify(S.wires)),
+  });
+  if (S.undoStack.length > 20) S.undoStack.shift();
+}
+
+function undoLast() {
+  if (!S.undoStack.length) { toast('Nothing to undo'); return; }
+  stopAllTimers();
+  cancelPortalSelect();
+  const state = S.undoStack.pop();
+  S.components.forEach(c => { const e=document.getElementById(c.id); if(e) e.remove(); });
+  document.getElementById('wire-layer').innerHTML = '';
+  S.components = state.components;
+  S.wires = state.wires;
+  S.components.forEach(c => renderComponent(c));
+  S.components.filter(c => c.type === 'timer_gate').forEach(startTimerComp);
+  // validate portal pair still has both portals present
+  if (S.portalPair && !S.portalPair.every(id => S.components.some(c => c.id === id))) {
+    S.portalPair = null;
+  }
+  updatePortConnected();
+  renderWires();
+}
+
+// ══════════════════════════════════════════════════════
+//  MODE
+// ══════════════════════════════════════════════════════
+function setMode(mode) {
+  S.mode = mode;
+  S.sandboxMode = mode === 'sandbox';
+  document.getElementById('btn-career').classList.toggle('active', mode==='career');
+  document.getElementById('btn-sandbox').classList.toggle('active', mode==='sandbox');
+  document.getElementById('sandbox-badge').style.display = S.sandboxMode ? 'block' : 'none';
+  document.getElementById('submit-btn').style.display = S.sandboxMode ? 'none' : '';
+  if (S.sandboxMode && S.orderTimer) { clearInterval(S.orderTimer); S.orderTimer=null; }
+  renderShop();
+  renderCustomerBox();
+}
+
+// ══════════════════════════════════════════════════════
+//  CUSTOMER / ORDER
+// ══════════════════════════════════════════════════════
+function renderCustomerBox() {
+  const box = document.getElementById('customer-box');
+  if (S.sandboxMode) {
+    box.innerHTML = `<div class="customer-name">∞ SANDBOX</div><div class="customer-order">Build anything. All components are free. No limits.</div>`;
+    return;
+  }
+  if (storyIndex >= STORY.length) {
+    box.innerHTML = `<div class="customer-name">✅ ALL DONE!</div><div class="customer-order" style="color:var(--green)">You completed all story orders!<br>Switch to Sandbox to keep building.</div>`;
+    return;
+  }
+  const order = STORY[storyIndex];
+  S.currentOrder = order;
+  box.innerHTML = `
+    <div class="customer-name">${order.avatar} ${order.customer}</div>
+    <div class="customer-order">
+      <div class="order-label">ORDER:</div>
+      <div class="order-value">${order.machine}</div>
+      <div class="order-desc">${order.desc}</div>
+      <div class="order-budget">💰 Reward: $${order.reward[0]}–$${order.reward[1]}</div>
+      <div class="order-timer" id="order-timer-label">⏱ Time: --</div>
+      <div class="timer-bar"><div class="timer-fill" id="timer-fill" style="width:100%"></div></div>
+    </div>`;
+  startOrderTimer(order);
+}
+
+function startOrderTimer(order) {
+  if (S.orderTimer) clearInterval(S.orderTimer);
+  S.orderStartTime = Date.now();
+  S.orderElapsed = 0;
+  S.orderTimer = setInterval(() => {
+    S.orderElapsed = Math.floor((Date.now() - S.orderStartTime) / 1000);
+    const remaining = order.timeLimit - S.orderElapsed;
+    const pct = Math.max(0, remaining / order.timeLimit * 100);
+    const lbl = document.getElementById('order-timer-label');
+    const fill = document.getElementById('timer-fill');
+    if (lbl) lbl.textContent = `⏱ Time left: ${remaining}s`;
+    if (fill) {
+      fill.style.width = pct + '%';
+      fill.style.background = pct > 50 ? 'var(--green)' : pct > 20 ? 'var(--yellow)' : 'var(--red)';
+    }
+    if (remaining <= 0) {
+      clearInterval(S.orderTimer);
+      toast('Time up! Order failed.', 'error');
+    }
+  }, 1000);
+}
+
+// ══════════════════════════════════════════════════════
+//  VALIDATION HELPERS
+// ══════════════════════════════════════════════════════
+function hasType(comps, type) { return comps.some(c => c.type === type); }
+function hasTypeStarting(comps, prefix) { return comps.some(c => c.type.startsWith(prefix)); }
+function isConnected(wires, fromType, toType, comps) {
+  return wires.some(w => {
+    const fc = comps.find(c => c.id === w.fromCompId);
+    const tc = comps.find(c => c.id === w.toCompId);
+    if (!fc || !tc) return false;
+    return (fromType ? fc.type === fromType || fc.type.startsWith(fromType) : true)
+        && (toType ? tc.type === toType || tc.type.startsWith(toType) : true);
+  });
+}
+
+function validatePrinterAlpha112(comps, wires) {
+  const printer = comps.find(c => c.type === 'printer_alpha_112');
+  if (!printer) return { ok:false, msg:'Missing Printer Chipset α1.12' };
+  const fc = comps.find(c => c.type === 'file_connector');
+  if (!fc) return { ok:false, msg:'Missing File Input Connector' };
+  const usb = comps.find(c => c.type === 'usb_porter');
+  if (!usb) return { ok:false, msg:'Missing USB Porter' };
+  if (!isConnected(wires,'usb_porter','file_connector',comps)) return { ok:false, msg:'USB Porter not connected to File Input Connector' };
+  if (!isConnected(wires,'file_connector','printer_alpha_112',comps)) return { ok:false, msg:'File Input Connector not connected to Printer Chipset' };
+  // size check: all components within 1m×1m = 10×10 tiles
+  const relevant = [printer, fc, usb];
+  const minX = Math.min(...relevant.map(c=>c.x));
+  const minY = Math.min(...relevant.map(c=>c.y));
+  const maxX = Math.max(...relevant.map(c=>c.x+c.w));
+  const maxY = Math.max(...relevant.map(c=>c.y+c.h));
+  const wCells = (maxX-minX)/CELL;
+  const hCells = (maxY-minY)/CELL;
+  if (wCells > 10 || hCells > 10) return { ok:false, msg:`Machine too large: ${wCells.toFixed(1)}×${hCells.toFixed(1)} tiles (max 10×10 = 1m×1m)` };
+  return { ok:true };
+}
+
+function validatePiston(comps, wires) {
+  const btn = comps.find(c => c.type === 'button');
+  if (!btn) return { ok:false, msg:'Missing Button' };
+  const sm = comps.find(c => c.type === 'sticky_mover_forward');
+  if (!sm) return { ok:false, msg:'Missing Sticky Mover (forward)' };
+  const rod = comps.find(c => c.type === 'rod_long');
+  if (!rod) return { ok:false, msg:'Missing Long Rod' };
+  if (!isConnected(wires,'button','sticky_mover_forward',comps)) return { ok:false, msg:'Button not connected to Sticky Mover' };
+  if (!isConnected(wires,'sticky_mover_forward','rod_long',comps)) return { ok:false, msg:'Sticky Mover not connected to Long Rod' };
+  return { ok:true };
+}
+
+function validateDetectorSound(comps, wires) {
+  const det = comps.find(c => c.type === 'detector');
+  if (!det) return { ok:false, msg:'Missing Detector' };
+  const sp = comps.find(c => c.type === 'sound_player');
+  if (!sp) return { ok:false, msg:'Missing Sound Player' };
+  if (!sp.data.soundLoaded) return { ok:false, msg:'Sound Player has no sound loaded' };
+  if (!isConnected(wires,'detector','sound_player',comps)) return { ok:false, msg:'Detector not connected to Sound Player' };
+  return { ok:true };
+}
+
+function validateTimerAlarm(comps, wires) {
+  const timer = comps.find(c => c.type === 'timer_gate');
+  if (!timer) return { ok:false, msg:'Missing Timer' };
+  if ((timer.data.intervalSec ?? 3) > 5) return { ok:false, msg:'Timer interval harus ≤ 5 detik' };
+  const sp = comps.find(c => c.type === 'sound_player');
+  if (!sp) return { ok:false, msg:'Missing Sound Player' };
+  if (!sp.data.soundLoaded) return { ok:false, msg:'Sound Player has no sound loaded' };
+  if (!isConnected(wires,'timer_gate','sound_player',comps)) return { ok:false, msg:'Timer not connected to Sound Player' };
+  return { ok:true };
+}
+
+function validateTimerMover(comps, wires) {
+  const timer = comps.find(c => c.type === 'timer_gate');
+  if (!timer) return { ok:false, msg:'Missing Timer' };
+  const mover = comps.find(c => c.type.startsWith('mover_') || c.type.startsWith('sticky_mover'));
+  if (!mover) return { ok:false, msg:'Missing Mover' };
+  const cube = comps.find(c => c.type === 'cube');
+  if (!cube) return { ok:false, msg:'Missing Cube' };
+  if (!isConnected(wires,'timer_gate',mover.type,comps)) return { ok:false, msg:'Timer not connected to Mover' };
+  if (!isConnected(wires,mover.type,'cube',comps)) return { ok:false, msg:'Mover not connected to Cube' };
+  return { ok:true };
+}
+
+function validatePortalPairOnly(comps, wires) {
+  const portals = comps.filter(c => c.type === 'portal');
+  if (portals.length < 2) return { ok:false, msg:'Butuh 2 Portal di kanvas' };
+  if (!S.portalPair) return { ok:false, msg:'Kedua Portal belum dipasangkan — klik konektor universal di masing-masing' };
+  const bothExist = S.portalPair.every(id => comps.some(c => c.id === id));
+  if (!bothExist) return { ok:false, msg:'Pasangan Portal tidak valid' };
+  return { ok:true };
+}
+
+function validatePortalTeleportSetup(comps, wires) {
+  const btn = comps.find(c => c.type === 'button');
+  if (!btn) return { ok:false, msg:'Missing Button' };
+  const mover = comps.find(c => c.type.startsWith('mover_') || c.type.startsWith('sticky_mover'));
+  if (!mover) return { ok:false, msg:'Missing Mover' };
+  const cube = comps.find(c => c.type === 'cube');
+  if (!cube) return { ok:false, msg:'Missing Cube' };
+  if (!isConnected(wires,'button',mover.type,comps)) return { ok:false, msg:'Button not connected to Mover' };
+  if (!isConnected(wires,mover.type,'cube',comps)) return { ok:false, msg:'Mover not connected to Cube' };
+  const portalCheck = validatePortalPairOnly(comps, wires);
+  if (!portalCheck.ok) return portalCheck;
+  return { ok:true };
+}
+
+function validateTimerPrinter(comps, wires) {
+  const usb = comps.find(c => c.type === 'usb_porter');
+  if (!usb) return { ok:false, msg:'Missing USB Porter' };
+  const fc = comps.find(c => c.type === 'file_connector');
+  if (!fc) return { ok:false, msg:'Missing File Input Connector' };
+  const printer = comps.find(c => c.type.startsWith('printer_'));
+  if (!printer) return { ok:false, msg:'Missing Printer Chipset' };
+  const timer = comps.find(c => c.type === 'timer_gate');
+  if (!timer) return { ok:false, msg:'Missing Timer' };
+  if (!isConnected(wires,'usb_porter','file_connector',comps)) return { ok:false, msg:'USB Porter not connected to File Input Connector' };
+  if (!isConnected(wires,'file_connector',printer.type,comps)) return { ok:false, msg:'File Input Connector not connected to Printer Chipset' };
+  if (!isConnected(wires,'timer_gate',null,comps)) return { ok:false, msg:'Timer harus terhubung ke salah satu komponen di jalur' };
+  return { ok:true };
+}
+
+function validateDualAlarm(comps, wires) {
+  const btn = comps.find(c => c.type === 'button');
+  if (!btn) return { ok:false, msg:'Missing Button' };
+  const timer = comps.find(c => c.type === 'timer_gate');
+  if (!timer) return { ok:false, msg:'Missing Timer' };
+  const sp = comps.find(c => c.type === 'sound_player');
+  if (!sp) return { ok:false, msg:'Missing Sound Player' };
+  if (!sp.data.soundLoaded) return { ok:false, msg:'Sound Player has no sound loaded' };
+  if (!isConnected(wires,'button','sound_player',comps)) return { ok:false, msg:'Button not connected to Sound Player' };
+  if (!isConnected(wires,'timer_gate','sound_player',comps)) return { ok:false, msg:'Timer not connected to Sound Player' };
+  return { ok:true };
+}
+
+function validateFastTimerPrinter(comps, wires) {
+  const timer = comps.find(c => c.type === 'timer_gate');
+  if (!timer) return { ok:false, msg:'Missing Timer' };
+  if ((timer.data.intervalSec ?? 3) > 3) return { ok:false, msg:'Timer interval harus ≤ 3 detik' };
+  const usb = comps.find(c => c.type === 'usb_porter');
+  if (!usb) return { ok:false, msg:'Missing USB Porter' };
+  if (!usb.data.fileLoaded) return { ok:false, msg:'USB Porter belum ada data yang di-load' };
+  const fc = comps.find(c => c.type === 'file_connector');
+  if (!fc) return { ok:false, msg:'Missing File Input Connector' };
+  const printer = comps.find(c => c.type.startsWith('printer_omega'));
+  if (!printer) return { ok:false, msg:'Missing Printer Chipset Omega' };
+  if (!isConnected(wires,'usb_porter','file_connector',comps)) return { ok:false, msg:'USB Porter not connected to File Input Connector' };
+  if (!isConnected(wires,'file_connector',printer.type,comps)) return { ok:false, msg:'File Input Connector not connected to Printer Chipset' };
+  if (!isConnected(wires,'timer_gate',null,comps)) return { ok:false, msg:'Timer harus terhubung ke jalur mesin' };
+  return { ok:true };
+}
+
+function validateDetectorPortalTrap(comps, wires) {
+  const det = comps.find(c => c.type === 'detector');
+  if (!det) return { ok:false, msg:'Missing Detector' };
+  const mover = comps.find(c => c.type.startsWith('mover_') || c.type.startsWith('sticky_mover'));
+  if (!mover) return { ok:false, msg:'Missing Mover' };
+  const cube = comps.find(c => c.type === 'cube');
+  if (!cube) return { ok:false, msg:'Missing Cube' };
+  if (!isConnected(wires,'detector',mover.type,comps)) return { ok:false, msg:'Detector not connected to Mover' };
+  if (!isConnected(wires,mover.type,'cube',comps)) return { ok:false, msg:'Mover not connected to Cube' };
+  const portalCheck = validatePortalPairOnly(comps, wires);
+  if (!portalCheck.ok) return portalCheck;
+  return { ok:true };
+}
+
+function validateAutoPortalLogistics(comps, wires) {
+  const timer = comps.find(c => c.type === 'timer_gate');
+  if (!timer) return { ok:false, msg:'Missing Timer' };
+  const mover = comps.find(c => c.type.startsWith('mover_') || c.type.startsWith('sticky_mover'));
+  if (!mover) return { ok:false, msg:'Missing Mover' };
+  const cube = comps.find(c => c.type === 'cube');
+  if (!cube) return { ok:false, msg:'Missing Cube' };
+  if (!isConnected(wires,'timer_gate',mover.type,comps)) return { ok:false, msg:'Timer not connected to Mover' };
+  if (!isConnected(wires,mover.type,'cube',comps)) return { ok:false, msg:'Mover not connected to Cube' };
+  const portalCheck = validatePortalPairOnly(comps, wires);
+  if (!portalCheck.ok) return portalCheck;
+  return { ok:true };
+}
+
+function validateMiniFactory(comps, wires) {
+  const timers = comps.filter(c => c.type === 'timer_gate');
+  if (!timers.length) return { ok:false, msg:'Missing Timer' };
+  const mover = comps.find(c => c.type.startsWith('mover_') || c.type.startsWith('sticky_mover'));
+  if (!mover) return { ok:false, msg:'Missing Mover' };
+  const cube = comps.find(c => c.type === 'cube');
+  if (!cube) return { ok:false, msg:'Missing Cube' };
+  if (!isConnected(wires,'timer_gate',mover.type,comps)) return { ok:false, msg:'Timer not connected to Mover (jalur logistik)' };
+  if (!isConnected(wires,mover.type,'cube',comps)) return { ok:false, msg:'Mover not connected to Cube' };
+  const portalCheck = validatePortalPairOnly(comps, wires);
+  if (!portalCheck.ok) return portalCheck;
+
+  const usb = comps.find(c => c.type === 'usb_porter');
+  if (!usb) return { ok:false, msg:'Missing USB Porter (jalur printer)' };
+  const fc = comps.find(c => c.type === 'file_connector');
+  if (!fc) return { ok:false, msg:'Missing File Input Connector' };
+  const printer = comps.find(c => c.type.startsWith('printer_'));
+  if (!printer) return { ok:false, msg:'Missing Printer Chipset' };
+  if (!isConnected(wires,'usb_porter','file_connector',comps)) return { ok:false, msg:'USB Porter not connected to File Input Connector' };
+  if (!isConnected(wires,'file_connector',printer.type,comps)) return { ok:false, msg:'File Input Connector not connected to Printer Chipset' };
+  if (!isConnected(wires,'timer_gate',null,comps)) return { ok:false, msg:'Timer harus terhubung ke jalur printer juga' };
+  return { ok:true };
+}
+
+// ══════════════════════════════════════════════════════
+//  SUBMIT
+// ══════════════════════════════════════════════════════
+function submitMachine() {
+  if (S.sandboxMode || storyIndex >= STORY.length) return;
+  const order = STORY[storyIndex];
+  const result = order.check(S.components, S.wires);
+  if (!result.ok) {
+    toast('❌ ' + result.msg, 'error');
+    showModal({
+      title: '❌ Order Failed',
+      body: `<p>Your machine doesn't meet the requirements:</p><p class="highlight">${result.msg}</p><p>Keep building and try again!</p>`,
+      buttons:[{label:'OK', action:'close'}],
+    });
+    return;
+  }
+  if (S.orderTimer) clearInterval(S.orderTimer);
+  const elapsed = S.orderElapsed;
+  const [minR, maxR] = order.reward;
+  const timeLimit = order.timeLimit;
+  const ratio = Math.max(0, 1 - elapsed / timeLimit);
+  const reward = Math.round(minR + ratio * (maxR - minR));
+  S.money += reward;
+  updateMoney();
+
+  const prevIndex = storyIndex;
+  storyIndex++;
+
+  showModal({
+    title: '✅ Order Complete!',
+    body: `<p><span class="highlight">${order.customer}</span> menerima mesinnya!</p>
+           <p>Waktu: <span class="highlight">${elapsed}s</span></p>
+           <p>Reward: <span class="highlight">+$${reward}</span></p>
+           ${storyIndex < STORY.length ? `<p>Customer berikutnya sudah menunggu...</p>` : `<p style="color:var(--green)">Semua order selesai! Selamat!</p>`}`,
+    buttons:[{label:'▶ NEXT', action:'close', cls:'success'}],
+    onClose: () => {
+      renderCustomerBox();
+      renderShop();
+    }
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  MONEY
+// ══════════════════════════════════════════════════════
+function updateMoney() {
+  document.getElementById('money-display').textContent = S.money;
+}
+
+// ══════════════════════════════════════════════════════
+//  MODAL
+// ══════════════════════════════════════════════════════
+function showModal({title, body, buttons=[], onClose=null}) {
+  const container = document.getElementById('modal-container');
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `<div class="modal">
+    <h2>${title}</h2>
+    ${body}
+    <div class="modal-btns">
+      ${buttons.map((b,i) => `<button class="modal-btn ${b.cls||''}" data-idx="${i}">${b.label}</button>`).join('')}
+    </div>
+  </div>`;
+  overlay.querySelectorAll('.modal-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const b = buttons[+btn.dataset.idx];
+      overlay.remove();
+      if (onClose) onClose();
+      if (b && b.action && b.action !== 'close') b.action();
+    });
+  });
+  container.appendChild(overlay);
+}
+
+// ══════════════════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════════════════
+let toastTimer = null;
+function toast(msg, type='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show' + (type ? ' '+type : '');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.className='', 2500);
+}
+
+// ══════════════════════════════════════════════════════
+//  INTRO MODAL
+// ══════════════════════════════════════════════════════
+function showIntro() {
+  showModal({
+    title: '⚙ MACHINE MAKER',
+    body: `<p>Selamat datang! Kamu adalah insinyur mesin.</p>
+           <p>Drag komponen dari <span class="highlight">SHOP</span> ke canvas, sambungkan port output <span style="color:var(--accent2)">●</span> ke input <span style="color:var(--accent)">●</span> dengan klik-drag kabel.</p>
+           <p>Customer pertamamu adalah <span class="highlight">Sugeng</span> — dia minta printer alpha 1.12.</p>
+           <p><span class="highlight">Tips:</span> Klik component untuk lihat propertinya. Klik kabel untuk hapus. ESC cancel wiring.</p>`,
+    buttons:[{label:'▶ MULAI', action:'close', cls:'success'}],
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  TOUCH SUPPORT
+// ══════════════════════════════════════════════════════
+
+const ghost = document.getElementById('drag-ghost');
+let shopTouchType = null; // type being dragged from shop
+
+// ── Shop item: ghost drag from shop → drop on canvas ──
+function startShopTouchDrag(type, def, cx, cy) {
+  shopTouchType = type;
+  ghost.innerHTML = `${def.icon}<span style="font-size:8px;margin-top:2px">${def.label}</span>`;
+  ghost.style.width  = (def.w * CELL) + 'px';
+  ghost.style.height = (def.h * CELL) + 'px';
+  ghost.className = 'visible';
+  moveGhost(cx, cy);
+  // after ghost activates, block page scroll via a non-passive listener
+  document.addEventListener('touchmove', preventScrollDuringDrag, {passive:false});
+}
+
+function preventScrollDuringDrag(e) {
+  if (shopTouchType) e.preventDefault();
+  else document.removeEventListener('touchmove', preventScrollDuringDrag);
+}
+
+function moveGhost(cx, cy) {
+  ghost.style.left = (cx - ghost.offsetWidth/2)  + 'px';
+  ghost.style.top  = (cy - ghost.offsetHeight/2) + 'px';
+}
+
+document.addEventListener('touchmove', e => {
+  const t = e.touches[0];
+
+  // shop ghost drag — only block scroll when ghost is showing
+  if (shopTouchType) {
+    e.preventDefault();
+    moveGhost(t.clientX, t.clientY);
+    return;
+  }
+
+  // comp move
+  if (S.dragging) {
+    e.preventDefault();
+    const rect = document.getElementById('game-canvas').getBoundingClientRect();
+    const comp = S.components.find(c => c.id === S.dragging.compId);
+    if (!comp) return;
+    const rawX = t.clientX - rect.left - S.dragging.offsetX;
+    const rawY = t.clientY - rect.top  - S.dragging.offsetY;
+    const def = COMP_DEFS[comp.type];
+    comp.x = Math.max(0, Math.min((CANVAS_W-def.w)*CELL, Math.round(rawX/CELL)*CELL));
+    comp.y = Math.max(0, Math.min((CANVAS_H-def.h)*CELL, Math.round(rawY/CELL)*CELL));
+    const el = document.getElementById(comp.id);
+    if (el) { el.style.left=comp.x+'px'; el.style.top=comp.y+'px'; }
+    renderWires();
+    return;
+  }
+
+  // wire preview via touch
+  if (S.wiringFrom) {
+    e.preventDefault();
+    const rect = document.getElementById('game-canvas').getBoundingClientRect();
+    S.mouseX = t.clientX - rect.left;
+    S.mouseY = t.clientY - rect.top;
+    updateWirePreview();
+  }
+}, {passive:false});
+
+document.addEventListener('touchend', e => {
+  const t = e.changedTouches[0];
+
+  // drop shop item on canvas
+  if (shopTouchType) {
+    ghost.className = '';
+    document.removeEventListener('touchmove', preventScrollDuringDrag);
+    const type = shopTouchType;
+    shopTouchType = null;
+    const def = COMP_DEFS[type];
+    if (!def) return;
+    if (!S.sandboxMode && S.money < def.price) { toast('Not enough money!','error'); return; }
+    // check if finger is over game-canvas
+    const gcRect = document.getElementById('game-canvas').getBoundingClientRect();
+    if (t.clientX < gcRect.left || t.clientX > gcRect.right ||
+        t.clientY < gcRect.top  || t.clientY > gcRect.bottom) {
+      toast('Drop onto the canvas!', '');
+      return;
+    }
+    const rawX = t.clientX - gcRect.left;
+    const rawY = t.clientY - gcRect.top;
+    const gx = Math.round(rawX/CELL) - Math.floor(def.w/2);
+    const gy = Math.round(rawY/CELL) - Math.floor(def.h/2);
+    const x = Math.max(0, Math.min(CANVAS_W-def.w, gx)) * CELL;
+    const y = Math.max(0, Math.min(CANVAS_H-def.h, gy)) * CELL;
+    saveUndo();
+    if (!S.sandboxMode && def.price > 0) { S.money -= def.price; updateMoney(); }
+    spawnComponent(type, x, y);
+    renderShop();
+    return;
+  }
+
+  // end comp move
+  if (S.dragging) { S.dragging = null; return; }
+
+  // end wire via touch (find port under finger)
+  if (S.wiringFrom) {
+    const el = document.elementFromPoint(t.clientX, t.clientY);
+    if (el && el.classList.contains('port')) {
+      const compId  = el.dataset.compId;
+      const portType = el.dataset.portType;
+      if (portType === 'input' && compId !== S.wiringFrom.compId) {
+        createWire(S.wiringFrom.compId, compId);
+      }
+      cancelWiring();
+    }
+    return;
+  }
+});
+
+// ── Comp touch drag start ──
+function onCompTouchStart(e) {
+  if (e.target.classList.contains('port')) return;
+  e.stopPropagation();
+  // don't preventDefault here — let click still fire for button/select
+  const t = e.touches[0];
+  const el = e.currentTarget;
+  const comp = S.components.find(c => c.id === el.id);
+  if (!comp) return;
+  const rect = document.getElementById('game-canvas').getBoundingClientRect();
+  S.dragging = {
+    compId: comp.id,
+    offsetX: t.clientX - rect.left - comp.x,
+    offsetY: t.clientY - rect.top  - comp.y,
+  };
+}
+
+// ── Port touch wiring start ──
+function onPortTouchStart(e) {
+  e.stopPropagation();
+  e.preventDefault();
+  const port = e.currentTarget;
+  const compId  = port.dataset.compId;
+  const portType = port.dataset.portType;
+
+  if (!S.wiringFrom) {
+    if (portType === 'output') {
+      S.wiringFrom = { compId, portType };
+      port.style.boxShadow = '0 0 8px var(--yellow)';
+      showWirePreview();
+      toast('Tap an INPUT port to connect', '');
+    }
+  } else {
+    if (portType === 'input' && compId !== S.wiringFrom.compId) {
+      createWire(S.wiringFrom.compId, compId);
+      cancelWiring();
+    } else {
+      cancelWiring();
+    }
+  }
+}
+
+// ── Button / detector tap via touchend ──
+document.getElementById('game-canvas').addEventListener('touchend', e => {
+  if (S.dragging || shopTouchType || S.wiringFrom) return;
+  const t = e.changedTouches[0];
+  const el = document.elementFromPoint(t.clientX, t.clientY);
+  if (!el) return;
+  const compEl = el.closest('.comp');
+  if (!compEl) return;
+  const comp = S.components.find(c => c.id === compEl.id);
+  if (!comp) return;
+  if (comp.type === 'button') { activateComponent(comp.id); }
+  selectComp(comp.id);
+}, {passive:true});
+
+// ══════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+//  SAVE / LOAD
+//  Uses Android internal file storage (window.AndroidStorage bridge)
+//  when running inside the WebView wrapper app. Falls back to
+//  browser localStorage when opened as a plain HTML file.
+// ══════════════════════════════════════════════════════
+const SAVE_KEY = 'machine_maker_save_v1';
+const HAS_ANDROID_BRIDGE = (typeof window.AndroidStorage !== 'undefined');
+
+function serializeState() {
+  return {
+    version: 1,
+    savedAt: Date.now(),
+    mode: S.mode,
+    money: S.money,
+    storyIndex: storyIndex,
+    nextId: S.nextId,
+    components: S.components,
+    wires: S.wires,
+    portalPair: S.portalPair,
+  };
+}
+
+function saveGame() {
+  try {
+    const data = serializeState();
+    const json = JSON.stringify(data);
+    if (HAS_ANDROID_BRIDGE) {
+      const result = window.AndroidStorage.saveData(SAVE_KEY, json);
+      if (result !== 'OK') { toast('❌ Gagal save: ' + result, 'error'); return; }
+    } else {
+      localStorage.setItem(SAVE_KEY, json);
+    }
+    toast('💾 Game saved!', 'success');
+  } catch (err) {
+    toast('❌ Gagal save: ' + err.message, 'error');
+  }
+}
+
+function loadGame() {
+  let raw;
+  try {
+    raw = HAS_ANDROID_BRIDGE ? window.AndroidStorage.loadData(SAVE_KEY) : localStorage.getItem(SAVE_KEY);
+  } catch (err) {
+    toast('❌ Gagal akses storage: ' + err.message, 'error');
+    return;
+  }
+  if (!raw) { toast('Tidak ada save data ditemukan', 'error'); return; }
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch (err) {
+    toast('❌ Save data korup', 'error');
+    return;
+  }
+  applyLoadedState(data);
+  toast('📂 Game loaded!', 'success');
+}
+
+function applyLoadedState(data) {
+  // stop everything currently running
+  stopAllTimers();
+  cancelPortalSelect();
+  if (S.orderTimer) { clearInterval(S.orderTimer); S.orderTimer = null; }
+  S.components.forEach(c => { const el = document.getElementById(c.id); if (el) el.remove(); });
+  document.getElementById('wire-layer').innerHTML = '';
+
+  S.money = data.money ?? 500;
+  S.nextId = data.nextId ?? 1;
+  S.components = data.components || [];
+  S.wires = data.wires || [];
+  S.portalPair = data.portalPair || null;
+  S.selected = null;
+  S.undoStack = [];
+  storyIndex = data.storyIndex ?? 0;
+
+  S.components.forEach(c => renderComponent(c));
+  S.components.filter(c => c.type === 'timer_gate').forEach(startTimerComp);
+
+  updatePortConnected();
+  renderWires();
+  updateMoney();
+  setMode(data.mode === 'sandbox' ? 'sandbox' : 'career');
+}
+
+function init() {
+  initCanvas();
+  renderShop();
+  renderCustomerBox();
+  updateMoney();
+  if (HAS_ANDROID_BRIDGE) {
+    try {
+      const raw = window.AndroidStorage.loadData(SAVE_KEY);
+      if (raw) {
+        applyLoadedState(JSON.parse(raw));
+        toast('📂 Save data dimuat', 'success');
+        return;
+      }
+    } catch (e) { /* ignore, fall through to fresh start */ }
+  }
+  showIntro();
+}
+
+init();
+</script>
+</body>
+</html>
