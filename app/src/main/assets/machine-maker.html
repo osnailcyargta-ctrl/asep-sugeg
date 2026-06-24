@@ -773,6 +773,7 @@ const COMP_DEFS = {
   sticky_mover_backward:{ label:'Sticky Mover ↓',icon:'🔽',w:2, h:2,  price:75,  ports:{input:['signal'],output:['moved']},   cat:'motion',   desc:'Sticky: item snaps back', subtype:'bwd-sticky' },
   rod_long:       { label:'Long Rod',          icon:'▬', w:4,  h:1,  price:30,  ports:{input:['moved']},                    cat:'structure',desc:'Solid long rod. Input only.' },
   cube:           { label:'Cube',              icon:'🟥', w:2,  h:2,  price:20,  ports:{input:['moved']},                    cat:'structure',desc:'Solid cube' },
+  contact_sensor: { label:'Contact Sensor',    icon:'🔲', w:2,  h:2,  price:55,  ports:{},                                   cat:'special',  desc:'Kalo ada komponen yang overlap/nyentuh block ini, komponen itu aktif. Cooldown bisa diset.' },
   portal:         { label:'Portal',            icon:'🌀', w:2,  h:2,  price:90,  ports:{universal:['portal']},               cat:'special',  desc:'Max 2 portal di kanvas. Benda yang nyentuh Portal A langsung muncul di Portal B (dan sebaliknya). Klik 2 portal buat pasangin.' },
   timer_gate:     { label:'Timer',             icon:'⏱', w:2,  h:2,  price:60,  ports:{output:['signal']},                  cat:'special',  desc:'Aktif sendiri tiap N detik (atur di panel properti). Berfungsi seperti Button otomatis.' },
 };
@@ -784,7 +785,7 @@ const SHOP_ORDER = [
   {cat:'── PRINTER Ω ──', items:['printer_omega_10','printer_omega_11','printer_omega_ultra']},
   {cat:'── MOTION ──',    items:['mover_forward','mover_backward','mover_left','mover_right','sticky_mover_forward','sticky_mover_backward']},
   {cat:'── STRUCTURE ──', items:['rod_long','cube']},
-  {cat:'── SPECIAL ──',   items:['portal','timer_gate']},
+  {cat:'── SPECIAL ──',   items:['portal','timer_gate','contact_sensor']},
 ];
 
 // ══════════════════════════════════════════════════════
@@ -1075,6 +1076,7 @@ function spawnComponent(type, x, y, extraData={}) {
   const def = COMP_DEFS[type];
   const id = 'c' + (S.nextId++);
   const comp = { id, type, x, y, w: def.w * CELL, h: def.h * CELL, data: {...extraData} };
+  if (type === 'contact_sensor') comp.data.cooldownMs = 1000;
   S.components.push(comp);
   renderComponent(comp);
   if (type === 'timer_gate') {
@@ -1201,6 +1203,15 @@ function renderProps(id) {
   const def = COMP_DEFS[comp.type];
   const box = document.getElementById('prop-content');
   let html = `<div class="prop-row"><span class="prop-key">type: </span><span class="prop-val">${def.label}</span></div>`;
+  if (comp.type === 'contact_sensor') {
+    const cd = comp.data.cooldownMs || 1000;
+    html += `<div class="prop-row"><span class="prop-key">cooldown: </span></div>`;
+    html += `<select class="timer-interval-input" style="width:100%;margin-top:4px;background:var(--bg);color:var(--text);border:1px solid var(--border);padding:4px;font-family:inherit;" onchange="setContactCooldown('${comp.id}', this.value)">`;
+    html += `<option value="1000" ${cd===1000?'selected':''}>1 detik</option>`;
+    html += `<option value="500" ${cd===500?'selected':''}>0.5 detik</option>`;
+    html += `<option value="250" ${cd===250?'selected':''}>0.25 detik</option>`;
+    html += `</select>`;
+  }
   if (def.subtype) html += `<div class="prop-row"><span class="prop-key">model: </span><span class="prop-val">${def.subtype}</span></div>`;
   html += `<div class="prop-row"><span class="prop-key">size: </span><span class="prop-val">${def.w}×${def.h} cells</span></div>`;
   html += `<div class="prop-row"><span class="prop-key">pos: </span><span class="prop-val">${comp.x/CELL},${comp.y/CELL}</span></div>`;
@@ -1777,6 +1788,49 @@ function activateComponent(id, visited=new Set()) {
   }, 600);
   renderWires();
 }
+
+function setContactCooldown(compId, ms) {
+  const comp = S.components.find(c => c.id === compId);
+  if (comp) comp.data.cooldownMs = parseInt(ms);
+}
+
+// Contact Sensor collision loop
+const _contactLastFired = {}; // compId -> timestamp
+setInterval(function checkContactSensors() {
+  const sensors = S.components.filter(c => c.type === 'contact_sensor');
+  if (!sensors.length) return;
+  const now = Date.now();
+  sensors.forEach(sensor => {
+    const sdef = COMP_DEFS[sensor.type];
+    const sx1 = sensor.x, sy1 = sensor.y;
+    const sx2 = sensor.x + sdef.w * CELL, sy2 = sensor.y + sdef.h * CELL;
+    const cd = sensor.data.cooldownMs || 1000;
+    const lastFired = _contactLastFired[sensor.id] || 0;
+    if (now - lastFired < cd) return; // masih cooldown
+    // cek semua komponen lain apakah overlap
+    S.components.forEach(other => {
+      if (other.id === sensor.id) return;
+      const odef = COMP_DEFS[other.type];
+      if (!odef) return;
+      const ox1 = other.x, oy1 = other.y;
+      const ox2 = other.x + odef.w * CELL, oy2 = other.y + odef.h * CELL;
+      // AABB overlap check
+      const overlap = ox1 < sx2 && ox2 > sx1 && oy1 < sy2 && oy2 > sy1;
+      if (overlap) {
+        _contactLastFired[sensor.id] = now;
+        // flash sensor
+        const el = document.getElementById(sensor.id);
+        if (el) { el.classList.add('active-comp'); setTimeout(() => el && el.classList.remove('active-comp'), 300); }
+        // aktivasi komponen yang nyentuh
+        if (other.type.startsWith('mover_') || other.type.startsWith('sticky_mover')) {
+          activateMover(other, new Set());
+        } else {
+          activateComponent(other.id);
+        }
+      }
+    });
+  });
+}, 100);
 
 function getMoverDir(moverId) {
   const comp = S.components.find(c => c.id === moverId);
@@ -2594,3 +2648,4 @@ init();
 </script>
 </body>
 </html>
+
