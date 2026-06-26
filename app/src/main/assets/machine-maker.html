@@ -504,6 +504,26 @@
     pointer-events: none;
   }
 
+  .display-panel-screen {
+    position:absolute; inset:4px; border-radius:4px;
+    background:#111; transition:background 0.2s;
+    display:flex; align-items:center; justify-content:center;
+    font-size:10px; color:#444;
+  }
+  .display-panel-screen.lit { color:transparent; }
+  .layer-badge {
+    position:absolute; top:2px; left:2px; font-size:8px;
+    background:rgba(0,0,0,0.6); color:#fff; border-radius:3px; padding:0 3px;
+  }
+  #hide-panel {
+    position:fixed; top:60px; right:10px; width:200px;
+    background:var(--panel); border:1px solid var(--border);
+    border-radius:8px; padding:10px; z-index:999;
+    display:none; max-height:60vh; overflow-y:auto;
+  }
+  #hide-panel h4 { margin:0 0 8px; font-size:12px; color:var(--accent); }
+  .hide-item { display:flex; align-items:center; gap:6px; margin-bottom:4px; font-size:11px; cursor:pointer; }
+  .hide-item input { cursor:pointer; }
   /* connected glow on wire */
   @keyframes wireFlow {
     0% { stroke-dashoffset: 20; }
@@ -771,21 +791,23 @@ const COMP_DEFS = {
   mover_right:         { label:'Mover → Right',icon:'➡', w:2,  h:2,  price:50,  ports:{input:['signal'],output:['moved']},   cat:'motion',   desc:'Moves connected item right', subtype:'right' },
   sticky_mover_forward: { label:'Sticky Mover ↑',icon:'🔼',w:2, h:2,  price:75,  ports:{input:['signal'],output:['moved']},   cat:'motion',   desc:'Sticky: item snaps back', subtype:'fwd-sticky' },
   sticky_mover_backward:{ label:'Sticky Mover ↓',icon:'🔽',w:2, h:2,  price:75,  ports:{input:['signal'],output:['moved']},   cat:'motion',   desc:'Sticky: item snaps back', subtype:'bwd-sticky' },
-  rod_long:       { label:'Long Rod',          icon:'▬', w:4,  h:1,  price:30,  ports:{input:['moved']},                    cat:'structure',desc:'Solid long rod. Input only.' },
-  cube:           { label:'Cube',              icon:'🟥', w:2,  h:2,  price:20,  ports:{input:['moved']},                    cat:'structure',desc:'Solid cube' },
-  contact_sensor: { label:'Contact Sensor',    icon:'🔲', w:2,  h:2,  price:55,  ports:{},                                   cat:'special',  desc:'Kalo ada komponen yang overlap/nyentuh block ini, komponen itu aktif. Cooldown bisa diset.' },
+  rod_long:       { label:'Long Rod',          icon:'▬', w:4,  h:1,  price:30,  ports:{input:['moved'],output:['signal']},   cat:'structure',desc:'Solid long rod. Bisa trigger komponen lain saat bergerak.' },
+  cube:           { label:'Cube',              icon:'🟥', w:2,  h:2,  price:20,  ports:{input:['moved'],output:['signal']},   cat:'structure',desc:'Solid cube. Bisa trigger komponen lain saat bergerak.' },
+  contact_sensor: { label:'Contact Sensor',    icon:'🔲', w:2,  h:2,  price:55,  ports:{input:['signal'],output:['signal']},  cat:'special',  desc:'Kalo ada komponen yang overlap block ini, komponen itu aktif. Juga bisa trigger output-nya.' },
+  display_panel:  { label:'Display Panel',     icon:'🖥', w:3,  h:2,  price:40,  ports:{input:['signal']},                   cat:'output',   desc:'Nampilin warna saat aktif. Pilih warna di panel properti.' },
   portal:         { label:'Portal',            icon:'🌀', w:2,  h:2,  price:90,  ports:{universal:['portal']},               cat:'special',  desc:'Max 2 portal di kanvas. Benda yang nyentuh Portal A langsung muncul di Portal B (dan sebaliknya). Klik 2 portal buat pasangin.' },
   timer_gate:     { label:'Timer',             icon:'⏱', w:2,  h:2,  price:60,  ports:{output:['signal']},                  cat:'special',  desc:'Aktif sendiri tiap N detik (atur di panel properti). Berfungsi seperti Button otomatis.' },
 };
 
 const SHOP_ORDER = [
-  {cat:'── INPUT ──',     items:['button','detector','usb_porter','sound_player']},
+  {cat:'── INPUT ──',     items:['button','detector','usb_porter']},
   {cat:'── PROCESSOR ──', items:['file_connector']},
   {cat:'── PRINTER α ──', items:['printer_alpha_100','printer_alpha_112']},
   {cat:'── PRINTER Ω ──', items:['printer_omega_10','printer_omega_11','printer_omega_ultra']},
   {cat:'── MOTION ──',    items:['mover_forward','mover_backward','mover_left','mover_right','sticky_mover_forward','sticky_mover_backward']},
   {cat:'── STRUCTURE ──', items:['rod_long','cube']},
   {cat:'── SPECIAL ──',   items:['portal','timer_gate','contact_sensor']},
+  {cat:'── OUTPUT ──',    items:['sound_player','display_panel']},
 ];
 
 // ══════════════════════════════════════════════════════
@@ -1077,6 +1099,9 @@ function spawnComponent(type, x, y, extraData={}) {
   const id = 'c' + (S.nextId++);
   const comp = { id, type, x, y, w: def.w * CELL, h: def.h * CELL, data: {...extraData} };
   if (type === 'contact_sensor') comp.data.cooldownMs = 1000;
+  if (type === 'display_panel') { comp.data.color = '#00ff88'; comp.data.layer = 1; }
+  comp.data.layer = comp.data.layer || 1;
+  comp.data.hidden = false;
   S.components.push(comp);
   renderComponent(comp);
   if (type === 'timer_gate') {
@@ -1203,10 +1228,15 @@ function renderProps(id) {
   const def = COMP_DEFS[comp.type];
   const box = document.getElementById('prop-content');
   let html = `<div class="prop-row"><span class="prop-key">type: </span><span class="prop-val">${def.label}</span></div>`;
+  // Layer
+  html += `<div class="prop-row"><span class="prop-key">layer: </span><input type="number" min="1" max="10" value="${comp.data.layer||1}" style="width:50px;background:var(--bg);color:var(--text);border:1px solid var(--border);padding:2px 4px" onchange="setCompLayer('${comp.id}',this.value)"></div>`;
+  if (comp.type === 'display_panel') {
+    html += `<div class="prop-row"><span class="prop-key">warna aktif: </span><input type="color" value="${comp.data.color||'#00ff88'}" onchange="setDisplayColor('${comp.id}',this.value)"></div>`;
+  }
   if (comp.type === 'contact_sensor') {
     const cd = comp.data.cooldownMs || 1000;
     html += `<div class="prop-row"><span class="prop-key">cooldown: </span></div>`;
-    html += `<select class="timer-interval-input" style="width:100%;margin-top:4px;background:var(--bg);color:var(--text);border:1px solid var(--border);padding:4px;font-family:inherit;" onchange="setContactCooldown('${comp.id}', this.value)">`;
+    html += `<select style="width:100%;margin-top:4px;background:var(--bg);color:var(--text);border:1px solid var(--border);padding:4px;font-family:inherit" onchange="setContactCooldown('${comp.id}',this.value)">`;
     html += `<option value="1000" ${cd===1000?'selected':''}>1 detik</option>`;
     html += `<option value="500" ${cd===500?'selected':''}>0.5 detik</option>`;
     html += `<option value="250" ${cd===250?'selected':''}>0.25 detik</option>`;
@@ -1426,8 +1456,7 @@ function getPortPos(compId, portType) {
 }
 
 function createWire(fromId, toId) {
-  // remove existing wire to same input
-  S.wires = S.wires.filter(w => !(w.toCompId === toId));
+  // allow infinite wires to same input — no limit
   const wid = 'w' + (S.nextId++);
   S.wires.push({ id: wid, fromCompId: fromId, toCompId: toId });
   updatePortConnected();
@@ -1765,6 +1794,8 @@ function activateComponent(id, visited=new Set()) {
       activateMover(target, visited);
     } else if (target.type === 'rod_long' || target.type === 'sphere' || target.type === 'cube') {
       moveItem(target.id, getMoverDir(id));
+      // trigger output wires dari rod/cube
+      S.wires.filter(w => w.fromCompId === target.id).forEach(w => activateComponent(w.toCompId));
     } else {
       activateComponent(target.id, visited);
     }
@@ -1789,44 +1820,109 @@ function activateComponent(id, visited=new Set()) {
   renderWires();
 }
 
+function setDisplayColor(compId, color) {
+  const comp = S.components.find(c => c.id === compId);
+  if (comp) comp.data.color = color;
+}
+
+function setCompLayer(compId, val) {
+  const comp = S.components.find(c => c.id === compId);
+  if (!comp) return;
+  comp.data.layer = parseInt(val) || 1;
+  const el = document.getElementById(compId);
+  if (el) { el.style.zIndex = comp.data.layer * 10; }
+  // update layer badge
+  const lb = el && el.querySelector('.layer-badge');
+  if (lb) lb.textContent = 'L' + comp.data.layer;
+  else if (el && comp.data.layer > 1) {
+    const nb = document.createElement('div'); nb.className='layer-badge';
+    nb.textContent='L'+comp.data.layer; el.appendChild(nb);
+  }
+}
+
 function setContactCooldown(compId, ms) {
   const comp = S.components.find(c => c.id === compId);
   if (comp) comp.data.cooldownMs = parseInt(ms);
 }
 
-// Contact Sensor collision loop
-const _contactLastFired = {}; // compId -> timestamp
+function setLayerPrompt() {
+  if (!S.selected) { toast('Pilih komponen dulu!','error'); return; }
+  const val = prompt('Set layer (1-10):', S.components.find(c=>c.id===S.selected)?.data.layer||1);
+  if (val) setCompLayer(S.selected, val);
+}
+
+function toggleHidePanel() {
+  const panel = document.getElementById('hide-panel');
+  if (!panel) return;
+  const visible = panel.style.display === 'block';
+  if (!visible) refreshHidePanel();
+  panel.style.display = visible ? 'none' : 'block';
+}
+
+function refreshHidePanel() {
+  const list = document.getElementById('hide-list');
+  if (!list) return;
+  list.innerHTML = '';
+  S.components.forEach(comp => {
+    const def = COMP_DEFS[comp.type];
+    const item = document.createElement('label');
+    item.className = 'hide-item';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = !comp.data.hidden;
+    cb.onchange = () => toggleCompVisibility(comp.id, !cb.checked);
+    item.appendChild(cb);
+    item.appendChild(document.createTextNode((def?.icon||'?') + ' ' + (def?.label||comp.type) + ' #' + comp.id.slice(-3)));
+    list.appendChild(item);
+  });
+}
+
+function toggleCompVisibility(compId, hide) {
+  const comp = S.components.find(c => c.id === compId);
+  if (!comp) return;
+  comp.data.hidden = hide;
+  const el = document.getElementById(compId);
+  if (el) el.style.opacity = hide ? '0.1' : '1';
+  // hide wires connected to this comp
+  document.querySelectorAll('.wire').forEach(w => {
+    const wData = S.wires.find(sw => sw.id === w.id);
+    if (wData && (wData.fromCompId === compId || wData.toCompId === compId)) {
+      w.style.display = hide ? 'none' : '';
+    }
+  });
+}
+
+function toggleWiresVisibility(hide) {
+  document.querySelectorAll('.wire').forEach(w => { w.style.display = hide ? 'none' : ''; });
+}
+
+// Contact Sensor collision + output loop
+const _contactLastFired = {};
 setInterval(function checkContactSensors() {
   const sensors = S.components.filter(c => c.type === 'contact_sensor');
   if (!sensors.length) return;
   const now = Date.now();
   sensors.forEach(sensor => {
     const sdef = COMP_DEFS[sensor.type];
-    const sx1 = sensor.x, sy1 = sensor.y;
-    const sx2 = sensor.x + sdef.w * CELL, sy2 = sensor.y + sdef.h * CELL;
+    const sx1=sensor.x, sy1=sensor.y, sx2=sensor.x+sdef.w*CELL, sy2=sensor.y+sdef.h*CELL;
     const cd = sensor.data.cooldownMs || 1000;
-    const lastFired = _contactLastFired[sensor.id] || 0;
-    if (now - lastFired < cd) return; // masih cooldown
-    // cek semua komponen lain apakah overlap
+    if (now - (_contactLastFired[sensor.id]||0) < cd) return;
     S.components.forEach(other => {
       if (other.id === sensor.id) return;
-      const odef = COMP_DEFS[other.type];
-      if (!odef) return;
-      const ox1 = other.x, oy1 = other.y;
-      const ox2 = other.x + odef.w * CELL, oy2 = other.y + odef.h * CELL;
-      // AABB overlap check
-      const overlap = ox1 < sx2 && ox2 > sx1 && oy1 < sy2 && oy2 > sy1;
-      if (overlap) {
+      const odef = COMP_DEFS[other.type]; if (!odef) return;
+      const ox1=other.x, oy1=other.y, ox2=other.x+odef.w*CELL, oy2=other.y+odef.h*CELL;
+      if (ox1<sx2 && ox2>sx1 && oy1<sy2 && oy2>sy1) {
         _contactLastFired[sensor.id] = now;
-        // flash sensor
         const el = document.getElementById(sensor.id);
-        if (el) { el.classList.add('active-comp'); setTimeout(() => el && el.classList.remove('active-comp'), 300); }
+        if (el) { el.classList.add('active-comp'); setTimeout(()=>el&&el.classList.remove('active-comp'),300); }
         // aktivasi komponen yang nyentuh
         if (other.type.startsWith('mover_') || other.type.startsWith('sticky_mover')) {
           activateMover(other, new Set());
         } else {
           activateComponent(other.id);
         }
+        // trigger output wires dari contact_sensor
+        S.wires.filter(w => w.fromCompId === sensor.id).forEach(w => activateComponent(w.toCompId));
       }
     });
   });
@@ -2646,6 +2742,12 @@ function init() {
 
 init();
 </script>
+<div id="hide-panel">
+  <h4>👁 Visibility</h4>
+  <div id="hide-list"></div>
+  <hr style="border-color:var(--border);margin:8px 0">
+  <label class="hide-item"><input type="checkbox" id="hide-wires-check" onchange="toggleWiresVisibility(this.checked)"> Hide semua kabel</label>
+</div>
 </body>
 </html>
 
