@@ -1777,7 +1777,7 @@ function renderWires() {
     path.setAttribute('class','wire' + (w.active?' active-wire':''));
     path.setAttribute('d', bezierPath(from.x,from.y,to.x,to.y));
     path.dataset.wireId = w.id;
-    path.addEventListener('click', () => {
+    path.addEventListener('click', async () => {
       if (await _confirm('Hapus kabel ini?', '🔌 Hapus Kabel')) {
         S.wires = S.wires.filter(ww => ww.id !== w.id);
         updatePortConnected();
