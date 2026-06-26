@@ -521,6 +521,36 @@
   #hide-panel h4 { margin:0 0 8px; font-size:12px; color:var(--accent); }
   .hide-item { display:flex; align-items:center; gap:6px; margin-bottom:4px; font-size:11px; cursor:pointer; }
   .hide-item input { cursor:pointer; }
+  #custom-popup-overlay {
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7);
+    z-index:9999; align-items:center; justify-content:center;
+  }
+  #custom-popup-overlay.show { display:flex; }
+  #custom-popup-box {
+    background:#1a1a2e; border:1px solid #333; border-radius:12px;
+    padding:24px; min-width:280px; max-width:90vw;
+    box-shadow:0 8px 32px rgba(0,0,0,0.8);
+    font-family:inherit; color:#eee;
+  }
+  #custom-popup-title {
+    font-size:14px; font-weight:bold; margin-bottom:12px;
+    color:var(--accent); letter-spacing:1px;
+  }
+  #custom-popup-msg { font-size:13px; margin-bottom:16px; color:#ccc; }
+  #custom-popup-input {
+    width:100%; box-sizing:border-box; padding:8px 10px;
+    background:#0d0d1a; border:1px solid #444; border-radius:6px;
+    color:#fff; font-size:13px; font-family:inherit; margin-bottom:16px;
+  }
+  #custom-popup-btns { display:flex; gap:8px; justify-content:flex-end; }
+  .popup-btn {
+    padding:8px 18px; border:none; border-radius:6px;
+    font-family:inherit; font-size:12px; cursor:pointer;
+    font-weight:bold; letter-spacing:0.5px;
+  }
+  .popup-btn.confirm { background:var(--accent); color:#000; }
+  .popup-btn.cancel  { background:#333; color:#aaa; }
+  .popup-btn.danger  { background:var(--red,#e53935); color:#fff; }
   /* connected glow on wire */
   @keyframes wireFlow {
     0% { stroke-dashoffset: 20; }
@@ -1748,7 +1778,7 @@ function renderWires() {
     path.setAttribute('d', bezierPath(from.x,from.y,to.x,to.y));
     path.dataset.wireId = w.id;
     path.addEventListener('click', () => {
-      if (confirm('Remove this wire?')) {
+      if (await _confirm('Hapus kabel ini?', '🔌 Hapus Kabel')) {
         S.wires = S.wires.filter(ww => ww.id !== w.id);
         updatePortConnected();
         renderWires();
@@ -1800,8 +1830,24 @@ function activateComponent(id, visited=new Set()) {
       activateMover(target, visited);
     } else if (target.type === 'rod_long' || target.type === 'sphere' || target.type === 'cube') {
       moveItem(target.id, getMoverDir(id));
-      // trigger output wires dari rod/cube
       S.wires.filter(w => w.fromCompId === target.id).forEach(w => activateComponent(w.toCompId));
+    } else if (target.type === 'display_panel') {
+      const dpEl = document.getElementById(target.id);
+      if (dpEl) {
+        const screen = dpEl.querySelector('.display-panel-screen');
+        if (screen) {
+          const col = target.data.color || '#00ff88';
+          screen.style.background = col;
+          dpEl.style.outline = '2px solid ' + col;
+          setTimeout(() => {
+            if (screen) screen.style.background = '#111';
+            dpEl.style.outline = '';
+          }, 600);
+        }
+      }
+    } else if (target.type === 'contact_sensor') {
+      // contact sensor: just forward output wires
+      S.wires.filter(w => w.fromCompId === target.id).forEach(w => activateComponent(w.toCompId, visited));
     } else {
       activateComponent(target.id, visited);
     }
@@ -1851,10 +1897,11 @@ function setContactCooldown(compId, ms) {
   if (comp) comp.data.cooldownMs = parseInt(ms);
 }
 
-function setLayerPrompt() {
+async function setLayerPrompt() {
   if (!S.selected) { toast('Pilih komponen dulu!','error'); return; }
-  const val = prompt('Set layer (1-10):', S.components.find(c=>c.id===S.selected)?.data.layer||1);
-  if (val) setCompLayer(S.selected, val);
+  const cur = S.components.find(c=>c.id===S.selected)?.data.layer||1;
+  const val = await _prompt('Masukkan layer (1-10):', String(cur), '🗂 Set Layer');
+  if (val !== null) setCompLayer(S.selected, val);
 }
 
 function toggleHidePanel() {
@@ -2042,8 +2089,9 @@ document.getElementById('game-canvas').addEventListener('mousedown', e => {
 // ══════════════════════════════════════════════════════
 //  TOOLBAR ACTIONS
 // ══════════════════════════════════════════════════════
-function clearAll() {
-  if (!confirm('Clear everything on the canvas?')) return;
+async function clearAll() {
+  const _ok = await _confirm('Yakin mau hapus semua komponen dan kabel?', '🗑 Clear Canvas');
+  if (!_ok) return;
   saveUndo();
   stopAllTimers();
   S.portalPair = null;
@@ -2754,6 +2802,59 @@ init();
   <hr style="border-color:var(--border);margin:8px 0">
   <label class="hide-item"><input type="checkbox" id="hide-wires-check" onchange="toggleWiresVisibility(this.checked)"> Hide semua kabel</label>
 </div>
+<div id="custom-popup-overlay">
+  <div id="custom-popup-box">
+    <div id="custom-popup-title"></div>
+    <div id="custom-popup-msg"></div>
+    <input id="custom-popup-input" type="text" style="display:none">
+    <div id="custom-popup-btns"></div>
+  </div>
+</div>
+<script>
+function _popup(opts) {
+  return new Promise(resolve => {
+    const ov = document.getElementById("custom-popup-overlay");
+    const title = document.getElementById("custom-popup-title");
+    const msg = document.getElementById("custom-popup-msg");
+    const inp = document.getElementById("custom-popup-input");
+    const btns = document.getElementById("custom-popup-btns");
+    title.textContent = opts.title || "";
+    msg.textContent = opts.msg || "";
+    btns.innerHTML = "";
+    if (opts.input !== undefined) {
+      inp.style.display = "block";
+      inp.value = opts.input;
+      inp.type = opts.inputType || "text";
+      setTimeout(() => inp.focus(), 50);
+    } else {
+      inp.style.display = "none";
+    }
+    ov.classList.add("show");
+    function close(val) { ov.classList.remove("show"); resolve(val); }
+    (opts.buttons || [{label:"OK", cls:"confirm", val:true}]).forEach(b => {
+      const btn = document.createElement("button");
+      btn.className = "popup-btn " + (b.cls||"confirm");
+      btn.textContent = b.label;
+      btn.onclick = () => close(b.val !== undefined ? b.val : (opts.input !== undefined ? inp.value : true));
+      btns.appendChild(btn);
+    });
+    inp.onkeydown = e => { if (e.key==="Enter") close(inp.value); if (e.key==="Escape") close(null); };
+    ov.onclick = e => { if (e.target===ov) close(null); };
+  });
+}
+async function _confirm(msg, title="Konfirmasi") {
+  return await _popup({ title, msg, buttons:[
+    {label:"Batal", cls:"cancel", val:false},
+    {label:"Ya", cls:"danger", val:true}
+  ]});
+}
+async function _prompt(msg, def="", title="Input") {
+  return await _popup({ title, msg, input:def, buttons:[
+    {label:"Batal", cls:"cancel", val:null},
+    {label:"OK", cls:"confirm"}
+  ]});
+}
+</script>
 </body>
 </html>
 
