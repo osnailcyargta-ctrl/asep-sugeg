@@ -505,12 +505,9 @@
   }
 
   .display-panel-screen {
-    position:absolute; inset:4px; border-radius:4px;
+    position:absolute; inset:0; border-radius:2px;
     background:#111; transition:background 0.2s;
-    display:flex; align-items:center; justify-content:center;
-    font-size:10px; color:#444;
   }
-  .display-panel-screen.lit { color:transparent; }
   .layer-badge {
     position:absolute; top:2px; left:2px; font-size:8px;
     background:rgba(0,0,0,0.6); color:#fff; border-radius:3px; padding:0 3px;
@@ -706,6 +703,8 @@
       <button class="tb-btn danger" onclick="clearAll()">✕ CLEAR</button>
       <button class="tb-btn" onclick="deleteSelected()">⌦ DEL</button>
       <button class="tb-btn" onclick="undoLast()">↩ UNDO</button>
+      <button class="tb-btn" onclick="toggleHidePanel()">👁 VISIBILITY</button>
+      <button class="tb-btn" onclick="setLayerPrompt()">🗂 LAYER</button>
       <div style="flex:1"></div>
       <span style="font-size:10px;color:var(--text-dim)" id="canvas-info">32×32 grid</span>
       <div style="flex:1"></div>
@@ -794,7 +793,7 @@ const COMP_DEFS = {
   rod_long:       { label:'Long Rod',          icon:'▬', w:4,  h:1,  price:30,  ports:{input:['moved'],output:['signal']},   cat:'structure',desc:'Solid long rod. Bisa trigger komponen lain saat bergerak.' },
   cube:           { label:'Cube',              icon:'🟥', w:2,  h:2,  price:20,  ports:{input:['moved'],output:['signal']},   cat:'structure',desc:'Solid cube. Bisa trigger komponen lain saat bergerak.' },
   contact_sensor: { label:'Contact Sensor',    icon:'🔲', w:2,  h:2,  price:55,  ports:{input:['signal'],output:['signal']},  cat:'special',  desc:'Kalo ada komponen yang overlap block ini, komponen itu aktif. Juga bisa trigger output-nya.' },
-  display_panel:  { label:'Display Panel',     icon:'🖥', w:3,  h:2,  price:40,  ports:{input:['signal']},                   cat:'output',   desc:'Nampilin warna saat aktif. Pilih warna di panel properti.' },
+  display_panel:  { label:'Display Panel',     icon:'',   w:1,  h:1,  price:40,  ports:{input:['signal']},                   cat:'output',   desc:'Nampilin warna saat aktif. Pilih warna di panel properti.' },
   portal:         { label:'Portal',            icon:'🌀', w:2,  h:2,  price:90,  ports:{universal:['portal']},               cat:'special',  desc:'Max 2 portal di kanvas. Benda yang nyentuh Portal A langsung muncul di Portal B (dan sebaliknya). Klik 2 portal buat pasangin.' },
   timer_gate:     { label:'Timer',             icon:'⏱', w:2,  h:2,  price:60,  ports:{output:['signal']},                  cat:'special',  desc:'Aktif sendiri tiap N detik (atur di panel properti). Berfungsi seperti Button otomatis.' },
 };
@@ -1127,6 +1126,13 @@ function renderComponent(comp) {
     ${def.subtype?`<div class="comp-subtype">${def.subtype}</div>`:''}
   </div>`;
 
+  if (comp.type === 'display_panel') {
+    el.innerHTML = '';
+    el.style.cssText += ';padding:0;overflow:hidden;';
+    const screen = document.createElement('div');
+    screen.className = 'display-panel-screen';
+    el.appendChild(screen);
+  }
   if (comp.type === 'portal') el.classList.add('portal-comp');
   if (comp.type === 'timer_gate') {
     el.classList.add('timer-comp');
