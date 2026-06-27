@@ -1280,12 +1280,12 @@ function renderProps(id) {
     html += `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">`;
     const presetColors = ['#ff0000','#ff6600','#ffff00','#00ff00','#00ff88','#00ffff','#0088ff','#8800ff','#ff00ff','#ffffff','#aaaaaa','#000000'];
     presetColors.forEach(c => {
-      html += `<div onclick="setDisplayColor('${comp.id}','${c}');renderProps()" style="width:22px;height:22px;border-radius:4px;background:${c};cursor:pointer;border:2px solid ${c===curCol?'#fff':'transparent'};flex-shrink:0"></div>`;
+      html += `<div onclick="setDisplayColor('${comp.id}','${c}');renderProps(S.selected)" style="width:22px;height:22px;border-radius:4px;background:${c};cursor:pointer;border:2px solid ${c===curCol?'#fff':'transparent'};flex-shrink:0"></div>`;
     });
     html += `</div>`;
     html += `<div style="margin-top:6px;display:flex;gap:6px;align-items:center">`;
     html += `<input id="custom-color-hex" type="text" value="${curCol}" maxlength="7" placeholder="#rrggbb" style="flex:1;background:var(--bg);color:var(--text);border:1px solid var(--border);padding:4px 6px;font-family:monospace;border-radius:4px" oninput="previewCustomColor(this.value,'${comp.id}')">`;
-    html += `<button class="popup-btn confirm" style="padding:4px 10px" onclick="applyCustomColor('${comp.id}');renderProps()">OK</button>`;
+    html += `<button class="popup-btn confirm" style="padding:4px 10px" onclick="applyCustomColor('${comp.id}');renderProps(S.selected)">OK</button>`;
     html += `</div>`;
   }
   if (comp.type.startsWith('contact_sensor')) {
@@ -1865,8 +1865,10 @@ function activateComponent(id, visited=new Set()) {
     } else if (target.type.startsWith('mover_') || target.type.startsWith('sticky_mover')) {
       activateMover(target, visited);
     } else if (target.type === 'rod_long' || target.type === 'sphere' || target.type === 'cube') {
-      moveItem(target.id, getMoverDir(id));
-      S.wires.filter(w => w.fromCompId === target.id).forEach(w => activateComponent(w.toCompId));
+      const dir = getMoverDir(id);
+      if (dir) moveItem(target.id, dir);
+      // selalu forward sinyal ke downstream, regardless gerak atau tidak
+      S.wires.filter(w => w.fromCompId === target.id).forEach(w => activateComponent(w.toCompId, visited));
     } else if (target.type.startsWith('display_panel')) {
       activateDisplay(target);
     } else if (target.type === 'contact_sensor' || target.type.startsWith('contact_sensor_')) {
@@ -2063,7 +2065,17 @@ setInterval(function checkContactSensors() {
           activateComponent(other.id);
         }
         // trigger output wires dari contact_sensor
-        S.wires.filter(w => w.fromCompId === sensor.id).forEach(w => activateComponent(w.toCompId));
+        S.wires.filter(w => w.fromCompId === sensor.id).forEach(w => {
+          const tgt = S.components.find(c => c.id === w.toCompId);
+          if (!tgt) return;
+          // rod/cube: gerakin dulu, terus forward sinyal ke downstream mereka
+          if (tgt.type === 'rod_long' || tgt.type === 'cube') {
+            activateComponent(w.toCompId);
+            S.wires.filter(ww => ww.fromCompId === w.toCompId).forEach(ww => activateComponent(ww.toCompId));
+          } else {
+            activateComponent(w.toCompId);
+          }
+        });
       }
     });
   });
@@ -2085,9 +2097,7 @@ function applyCustomColor(compId) {
   }
 }
 
-function renderProps() {
-  if (S.selected) showProps(S.selected);
-}
+
 
 function activateDisplay(comp) {
   const el = document.getElementById(comp.id);
