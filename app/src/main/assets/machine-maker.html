@@ -1786,7 +1786,8 @@ function bezierPath(x1,y1,x2,y2) {
   return `M${x1},${y1} C${x1+dx},${y1} ${x2-dx},${y2} ${x2},${y2}`;
 }
 
-function renderWires() {
+function renderWires() { _renderWiresInner(); applyVisibility(); }
+function _renderWiresInner() {
   const svg = document.getElementById('wire-layer');
   // remove old wires (keep preview)
   svg.querySelectorAll('.wire').forEach(e=>e.remove());
