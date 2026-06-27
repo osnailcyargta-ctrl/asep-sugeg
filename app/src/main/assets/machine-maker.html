@@ -826,6 +826,9 @@ const COMP_DEFS = {
   contact_sensor_2x1:{ label:'Contact Sensor 2×1',icon:'🔲', w:2, h:1, price:45, ports:{input:['signal'],output:['signal']}, cat:'special', desc:'Contact sensor tipis horizontal.' },
   contact_sensor_1x2:{ label:'Contact Sensor 1×2',icon:'🔲', w:1, h:2, price:45, ports:{input:['signal'],output:['signal']}, cat:'special', desc:'Contact sensor tipis vertikal.' },
   display_panel:    { label:'Display',  icon:'', w:1, h:1, price:40,  ports:{input:['signal']}, cat:'output', desc:'Layar 1×1.' },
+  hider:   { label:'Hider',   icon:'🫥', w:2, h:2, price:60, ports:{input:['signal'],output:['signal']}, cat:'special', desc:'Saat aktif: hide semua komponen yang di-wire ke outputnya (masih bisa aktif tapi invisible).' },
+  toggler: { label:'Toggle',  icon:'⏺', w:2, h:2, price:60, ports:{input:['signal'],output:['signal']}, cat:'special', desc:'Saat aktif: hide DAN nonaktifkan komponen output. Aktifkan lagi buat show.' },
+  shower:  { label:'Shower',  icon:'👁', w:2, h:2, price:60, ports:{input:['signal'],output:['signal']}, cat:'special', desc:'Kebalikan hider/toggler: show dan aktifkan kembali komponen yang di-hide/toggle.' },
   display_panel_2x2:{ label:'Display',  icon:'', w:2, h:2, price:70,  ports:{input:['signal']}, cat:'output', desc:'Layar 2×2.' },
   display_panel_3x3:{ label:'Display',  icon:'', w:3, h:3, price:120, ports:{input:['signal']}, cat:'output', desc:'Layar 3×3.' },
   portal:         { label:'Portal',            icon:'🌀', w:2,  h:2,  price:90,  ports:{universal:['portal']},               cat:'special',  desc:'Max 2 portal di kanvas. Benda yang nyentuh Portal A langsung muncul di Portal B (dan sebaliknya). Klik 2 portal buat pasangin.' },
@@ -839,7 +842,7 @@ const SHOP_ORDER = [
   {cat:'── PRINTER Ω ──', items:['printer_omega_10','printer_omega_11','printer_omega_ultra']},
   {cat:'── MOTION ──',    items:['mover_forward','mover_backward','mover_left','mover_right','sticky_mover_forward','sticky_mover_backward']},
   {cat:'── STRUCTURE ──', items:['rod_long','cube']},
-  {cat:'── SPECIAL ──',   items:['portal','timer_gate','contact_sensor','contact_sensor_2x1','contact_sensor_1x2']},
+  {cat:'── SPECIAL ──',   items:['portal','timer_gate','contact_sensor','contact_sensor_2x1','contact_sensor_1x2','hider','toggler','shower']},
   {cat:'── OUTPUT ──',    items:['sound_player','display_panel','display_panel_2x2','display_panel_3x3']},
 ];
 
@@ -1814,6 +1817,7 @@ function _renderWiresInner() {
 // ══════════════════════════════════════════════════════
 function activateComponent(id, visited=new Set()) {
   if (visited.has(id)) return;
+  if (_disabledComps && _disabledComps[id]) return; // toggled off
   visited.add(id);
 
   const comp = S.components.find(c => c.id === id);
@@ -1853,22 +1857,37 @@ function activateComponent(id, visited=new Set()) {
       moveItem(target.id, getMoverDir(id));
       S.wires.filter(w => w.fromCompId === target.id).forEach(w => activateComponent(w.toCompId));
     } else if (target.type.startsWith('display_panel')) {
-      const dpEl = document.getElementById(target.id);
-      if (dpEl) {
-        const screen = dpEl.querySelector('.display-panel-screen');
-        if (screen) {
-          const col = target.data.color || '#00ff88';
-          screen.style.background = col;
-          dpEl.style.outline = '2px solid ' + col;
-          setTimeout(() => {
-            if (screen) screen.style.background = '#111';
-            dpEl.style.outline = '';
-          }, 600);
-        }
-      }
-    } else if (target.type === 'contact_sensor') {
-      // contact sensor: just forward output wires
+      activateDisplay(target);
+    } else if (target.type === 'contact_sensor' || target.type.startsWith('contact_sensor_')) {
       S.wires.filter(w => w.fromCompId === target.id).forEach(w => activateComponent(w.toCompId, visited));
+    } else if (target.type === 'hider') {
+      // flash hider then hide all output targets (invisible but still activatable)
+      S.wires.filter(w => w.fromCompId === target.id).forEach(w => {
+        _hiddenComps[w.toCompId] = true;
+        const c = S.components.find(c => c.id === w.toCompId);
+        if (c) c.data.hidden = true;
+      });
+      applyVisibility();
+    } else if (target.type === 'toggler') {
+      // toggle: hide AND disable output targets
+      S.wires.filter(w => w.fromCompId === target.id).forEach(w => {
+        const already = !!_hiddenComps[w.toCompId];
+        _hiddenComps[w.toCompId] = !already;
+        _disabledComps = _disabledComps || {};
+        _disabledComps[w.toCompId] = !already;
+        const c = S.components.find(c => c.id === w.toCompId);
+        if (c) c.data.hidden = !already;
+      });
+      applyVisibility();
+    } else if (target.type === 'shower') {
+      // show all output targets
+      S.wires.filter(w => w.fromCompId === target.id).forEach(w => {
+        delete _hiddenComps[w.toCompId];
+        if (_disabledComps) delete _disabledComps[w.toCompId];
+        const c = S.components.find(c => c.id === w.toCompId);
+        if (c) c.data.hidden = false;
+      });
+      applyVisibility();
     } else {
       activateComponent(target.id, visited);
     }
@@ -1955,6 +1974,7 @@ function refreshHidePanel() {
 
 let _wiresHidden = false;
 let _hiddenComps = {};
+let _disabledComps = {};
 
 function toggleWiresVisibility(hide) {
   _wiresHidden = hide;
@@ -1974,11 +1994,16 @@ function applyVisibility() {
   S.components.forEach(comp => {
     const el = document.getElementById(comp.id);
     if (!el) return;
-    const hidden = _hiddenComps[comp.id];
-    el.style.opacity = hidden ? '0.08' : '1';
-    el.style.pointerEvents = hidden ? 'none' : '';
-    // hide ports when comp is hidden
-    el.querySelectorAll('.port').forEach(p => p.style.display = hidden ? 'none' : '');
+    const hidden = !!_hiddenComps[comp.id];
+    if (hidden) {
+      el.style.opacity = '0.08';
+      el.style.pointerEvents = 'none';
+      el.querySelectorAll('.port').forEach(p => p.style.display = 'none');
+    } else {
+      el.style.opacity = '';
+      el.style.pointerEvents = '';
+      el.querySelectorAll('.port').forEach(p => p.style.display = '');
+    }
   });
   // wires + ports on wires
   const svg = document.getElementById('wire-layer');
@@ -2032,6 +2057,23 @@ setInterval(function checkContactSensors() {
     });
   });
 }, 100);
+
+function activateDisplay(comp) {
+  const el = document.getElementById(comp.id);
+  if (!el) return;
+  const screen = el.querySelector('.display-panel-screen');
+  if (!screen) return;
+  const col = comp.data.color || '#00ff88';
+  // Clear any pending reset
+  if (comp._dpTimer) clearTimeout(comp._dpTimer);
+  screen.style.setProperty('background', col, 'important');
+  el.style.setProperty('box-shadow', '0 0 8px ' + col, 'important');
+  comp._dpTimer = setTimeout(() => {
+    screen.style.setProperty('background', '#111', 'important');
+    el.style.removeProperty('box-shadow');
+    comp._dpTimer = null;
+  }, 600);
+}
 
 function getMoverDir(moverId) {
   const comp = S.components.find(c => c.id === moverId);
@@ -2147,6 +2189,8 @@ async function clearAll() {
   saveUndo();
   stopAllTimers();
   S.portalPairs = {};
+  _hiddenComps = {};
+  _disabledComps = {};
   cancelPortalSelect();
   S.components.forEach(c => { const el=document.getElementById(c.id); if(el) el.remove(); });
   S.components = [];
@@ -2164,6 +2208,8 @@ function deleteSelected() {
   if (deletedComp.type === 'timer_gate') stopTimerComp(deletedComp.id);
   if (deletedComp.type === 'portal' && S.portalPairs && Object.keys(S.portalPairs).length > 0 && S.portalPair.includes(deletedComp.id)) {
     S.portalPairs = {};
+  _hiddenComps = {};
+  _disabledComps = {};
   }
   if (portalSelectFirst === deletedComp.id) portalSelectFirst = null;
   const el = document.getElementById(S.selected);
@@ -2197,6 +2243,8 @@ function undoLast() {
   // validate portal pair still has both portals present
   if (S.portalPairs && Object.keys(S.portalPairs).every(id => S.components.some(c => c.id === id))) {
     S.portalPairs = {};
+  _hiddenComps = {};
+  _disabledComps = {};
   }
   updatePortConnected();
   renderWires();
