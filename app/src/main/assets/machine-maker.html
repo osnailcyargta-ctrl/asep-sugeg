@@ -1828,7 +1828,7 @@ function _renderWiresInner() {
 // ══════════════════════════════════════════════════════
 function activateComponent(id, visited=new Set()) {
   if (visited.has(id)) return;
-  if (_disabledComps && _disabledComps[id]) return; // toggled off
+  if (_disabledComps && _disabledComps[id]) return;
   visited.add(id);
 
   const comp = S.components.find(c => c.id === id);
@@ -1839,18 +1839,19 @@ function activateComponent(id, visited=new Set()) {
     setTimeout(() => el && el.classList.remove('active-comp'), 500);
   }
 
-  // Find all wires FROM this component
-  const outWires = S.wires.filter(w => w.fromCompId === id);
-  outWires.forEach(w => {
-    w.active = true;
-    const target = S.components.find(c => c.id === w.toCompId);
+  const outWires = S.wires.filter(ow => ow.fromCompId === id);
+  outWires.forEach(ow => {
+    ow.active = true;
+    const target = S.components.find(c => c.id === ow.toCompId);
     if (!target) return;
+    const tid = target.id;
+    const ttype = target.type;
 
-    if (target.type === 'sound_player') {
+    if (ttype === 'sound_player') {
       playSound(target);
-    } else if (target.type === 'file_connector') {
-      // pass through data
-      const usbWires = S.wires.filter(ww => ww.toCompId === id);
+
+    } else if (ttype === 'file_connector') {
+      const usbWires = S.wires.filter(uw => uw.toCompId === id);
       if (usbWires.length > 0) {
         const usbComp = S.components.find(c => c.id === usbWires[0].fromCompId);
         if (usbComp && usbComp.data.fileData) {
@@ -1858,58 +1859,63 @@ function activateComponent(id, visited=new Set()) {
           target.data.fileType = usbComp.data.fileType;
         }
       }
-      activateComponent(target.id, visited);
-    } else if (target.type.startsWith('printer_')) {
-      // find filedata from file_connector connected to printer
+      activateComponent(tid, visited);
+
+    } else if (ttype.startsWith('printer_')) {
       processPrinter(target, id);
-    } else if (target.type.startsWith('mover_') || target.type.startsWith('sticky_mover')) {
+
+    } else if (ttype.startsWith('mover_') || ttype.startsWith('sticky_mover')) {
       activateMover(target, visited);
-    } else if (target.type === 'rod_long' || target.type === 'sphere' || target.type === 'cube') {
+
+    } else if (ttype === 'rod_long' || ttype === 'sphere' || ttype === 'cube') {
       const dir = getMoverDir(id);
-      if (dir) moveItem(target.id, dir);
-      // selalu forward sinyal ke downstream, regardless gerak atau tidak
-      S.wires.filter(w => w.fromCompId === target.id).forEach(w => activateComponent(w.toCompId, visited));
-    } else if (target.type.startsWith('display_panel')) {
+      if (dir) moveItem(tid, dir);
+      S.wires.filter(dw => dw.fromCompId === tid).forEach(dw => activateComponent(dw.toCompId, visited));
+
+    } else if (ttype.startsWith('display_panel')) {
       activateDisplay(target);
-    } else if (target.type === 'contact_sensor' || target.type.startsWith('contact_sensor_')) {
-      S.wires.filter(w => w.fromCompId === target.id).forEach(w => activateComponent(w.toCompId, visited));
-    } else if (target.type === 'hider') {
-      // flash hider then hide all output targets (invisible but still activatable)
-      S.wires.filter(w => w.fromCompId === target.id).forEach(w => {
-        _hiddenComps[w.toCompId] = true;
-        const c = S.components.find(c => c.id === w.toCompId);
-        if (c) c.data.hidden = true;
+
+    } else if (ttype === 'contact_sensor' || ttype.startsWith('contact_sensor_')) {
+      S.wires.filter(cw => cw.fromCompId === tid).forEach(cw => activateComponent(cw.toCompId, visited));
+
+    } else if (ttype === 'hider') {
+      S.wires.filter(hw => hw.fromCompId === tid).forEach(hw => {
+        _hiddenComps[hw.toCompId] = true;
+        const hc = S.components.find(c => c.id === hw.toCompId);
+        if (hc) hc.data.hidden = true;
       });
       applyVisibility();
-    } else if (target.type === 'toggler') {
-      // toggle: hide AND disable output targets
-      S.wires.filter(w => w.fromCompId === target.id).forEach(w => {
-        const already = !!_hiddenComps[w.toCompId];
-        _hiddenComps[w.toCompId] = !already;
-        _disabledComps = _disabledComps || {};
-        _disabledComps[w.toCompId] = !already;
-        const c = S.components.find(c => c.id === w.toCompId);
-        if (c) c.data.hidden = !already;
+
+    } else if (ttype === 'toggler') {
+      S.wires.filter(tw => tw.fromCompId === tid).forEach(tw => {
+        const already = !!_hiddenComps[tw.toCompId];
+        _hiddenComps[tw.toCompId] = !already;
+        _disabledComps[tw.toCompId] = !already;
+        const tc = S.components.find(c => c.id === tw.toCompId);
+        if (tc) tc.data.hidden = !already;
       });
       applyVisibility();
-    } else if (target.type === 'shower') {
-      // show all output targets
-      S.wires.filter(w => w.fromCompId === target.id).forEach(w => {
-        delete _hiddenComps[w.toCompId];
-        if (_disabledComps) delete _disabledComps[w.toCompId];
-        const c = S.components.find(c => c.id === w.toCompId);
-        if (c) c.data.hidden = false;
+
+    } else if (ttype === 'shower') {
+      S.wires.filter(sw => sw.fromCompId === tid).forEach(sw => {
+        delete _hiddenComps[sw.toCompId];
+        delete _disabledComps[sw.toCompId];
+        const sc = S.components.find(c => c.id === sw.toCompId);
+        if (sc) sc.data.hidden = false;
       });
       applyVisibility();
+
+    } else if (ttype === 'timer_gate') {
+      activateComponent(tid, visited);
+
     } else {
-      activateComponent(target.id, visited);
+      activateComponent(tid, visited);
     }
   });
 
-  // USB porter: data out
   if (comp.type === 'usb_porter' && comp.data.fileLoaded) {
-    outWires.forEach(w => {
-      const target = S.components.find(c => c.id === w.toCompId);
+    outWires.forEach(ow => {
+      const target = S.components.find(c => c.id === ow.toCompId);
       if (target && target.type === 'file_connector') {
         target.data.fileData = comp.data.fileData;
         target.data.fileType = comp.data.fileType;
@@ -1919,7 +1925,7 @@ function activateComponent(id, visited=new Set()) {
   }
 
   setTimeout(() => {
-    outWires.forEach(w => w.active = false);
+    outWires.forEach(ow => ow.active = false);
     renderWires();
   }, 600);
   renderWires();
