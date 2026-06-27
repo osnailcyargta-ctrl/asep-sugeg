@@ -1275,7 +1275,18 @@ function renderProps(id) {
   // Layer
   html += `<div class="prop-row"><span class="prop-key">layer: </span><input type="number" min="1" max="10" value="${comp.data.layer||1}" style="width:50px;background:var(--bg);color:var(--text);border:1px solid var(--border);padding:2px 4px" onchange="setCompLayer('${comp.id}',this.value)"></div>`;
   if (comp.type.startsWith('display_panel')) {
-    html += `<div class="prop-row"><span class="prop-key">warna aktif: </span><input type="color" value="${comp.data.color||'#00ff88'}" onchange="setDisplayColor('${comp.id}',this.value)"></div>`;
+    const curCol = comp.data.color || '#00ff88';
+    html += `<div class="prop-row"><span class="prop-key">warna aktif: </span></div>`;
+    html += `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">`;
+    const presetColors = ['#ff0000','#ff6600','#ffff00','#00ff00','#00ff88','#00ffff','#0088ff','#8800ff','#ff00ff','#ffffff','#aaaaaa','#000000'];
+    presetColors.forEach(c => {
+      html += `<div onclick="setDisplayColor('${comp.id}','${c}');renderProps()" style="width:22px;height:22px;border-radius:4px;background:${c};cursor:pointer;border:2px solid ${c===curCol?'#fff':'transparent'};flex-shrink:0"></div>`;
+    });
+    html += `</div>`;
+    html += `<div style="margin-top:6px;display:flex;gap:6px;align-items:center">`;
+    html += `<input id="custom-color-hex" type="text" value="${curCol}" maxlength="7" placeholder="#rrggbb" style="flex:1;background:var(--bg);color:var(--text);border:1px solid var(--border);padding:4px 6px;font-family:monospace;border-radius:4px" oninput="previewCustomColor(this.value,'${comp.id}')">`;
+    html += `<button class="popup-btn confirm" style="padding:4px 10px" onclick="applyCustomColor('${comp.id}');renderProps()">OK</button>`;
+    html += `</div>`;
   }
   if (comp.type.startsWith('contact_sensor')) {
     const cd = comp.data.cooldownMs || 1000;
@@ -2058,19 +2069,36 @@ setInterval(function checkContactSensors() {
   });
 }, 100);
 
+function previewCustomColor(val, compId) {
+  if (/^#[0-9a-fA-F]{6}$/.test(val)) {
+    const comp = S.components.find(c => c.id === compId);
+    if (comp) comp.data.color = val;
+  }
+}
+
+function applyCustomColor(compId) {
+  const inp = document.getElementById('custom-color-hex');
+  if (!inp) return;
+  const val = inp.value.trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(val)) {
+    setDisplayColor(compId, val);
+  }
+}
+
+function renderProps() {
+  if (S.selected) showProps(S.selected);
+}
+
 function activateDisplay(comp) {
   const el = document.getElementById(comp.id);
   if (!el) return;
   const screen = el.querySelector('.display-panel-screen');
   if (!screen) return;
   const col = comp.data.color || '#00ff88';
-  // Clear any pending reset
   if (comp._dpTimer) clearTimeout(comp._dpTimer);
   screen.style.setProperty('background', col, 'important');
-  el.style.setProperty('box-shadow', '0 0 8px ' + col, 'important');
   comp._dpTimer = setTimeout(() => {
     screen.style.setProperty('background', '#111', 'important');
-    el.style.removeProperty('box-shadow');
     comp._dpTimer = null;
   }, 600);
 }
